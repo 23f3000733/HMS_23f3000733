@@ -1,0 +1,136 @@
+/* Doctor Dashboard Theme - Clean & Minimalist */
+
+:root {
+  --doctor-primary: #008080; /* Teal */
+  --doctor-primary-hover: #006666;
+  --doctor-secondary: #20c997; /* Soft Teal */
+  --doctor-accent: #e6fffa; /* Very light teal for backgrounds */
+  --doctor-text-dark: #343a40;
+  --doctor-text-muted: #6c757d;
+  --doctor-bg-light: #f8f9fa;
+  --doctor-card-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  --doctor-card-hover-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  --doctor-border-radius: 0.5rem;
+}
+
+body {
+  background-color: var(--doctor-bg-light);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: var(--doctor-text-dark);
+}
+
+/* Navigation Tabs */
+.doctor-nav-tabs {
+  border-bottom: none;
+  margin-bottom: 1.5rem;
+  background: white;
+  padding: 0.5rem 1rem 0;
+  border-radius: var(--doctor-border-radius);
+  box-shadow: var(--doctor-card-shadow);
+}
+
+.doctor-nav-tabs .nav-link {
+  border: none;
+  color: var(--doctor-text-muted);
+  font-weight: 500;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.doctor-nav-tabs .nav-link:hover {
+  color: var(--doctor-primary);
+  background-color: transparent;
+}
+
+.doctor-nav-tabs .nav-link.active {
+  color: var(--doctor-primary);
+  background-color: transparent;
+  border-bottom-color: var(--doctor-primary);
+}
+
+.doctor-nav-tabs .nav-link i {
+  margin-right: 0.5rem;
+}
+
+/* Cards */
+.card {
+  border: none;
+  border-radius: var(--doctor-border-radius);
+  box-shadow: var(--doctor-card-shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background-color: white;
+  margin-bottom: 1.5rem;
+}
+
+.card:hover {
+  box-shadow: var(--doctor-card-hover-shadow);
+}
+
+.card-header {
+  background-color: white;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  padding: 1.25rem;
+  font-weight: 600;
+  color: var(--doctor-primary);
+  border-top-left-radius: var(--doctor-border-radius) !important;
+  border-top-right-radius: var(--doctor-border-radius) !important;
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: var(--doctor-primary);
+  border-color: var(--doctor-primary);
+}
+
+.btn-primary:hover {
+  background-color: var(--doctor-primary-hover);
+  border-color: var(--doctor-primary-hover);
+}
+
+.btn-outline-primary {
+  color: var(--doctor-primary);
+  border-color: var(--doctor-primary);
+}
+
+.btn-outline-primary:hover {
+  background-color: var(--doctor-primary);
+  border-color: var(--doctor-primary);
+}
+
+/* Tables */
+.table thead th {
+  background-color: var(--doctor-accent);
+  color: var(--doctor-primary);
+  font-weight: 600;
+  border-bottom: none;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+}
+
+.table-hover tbody tr:hover {
+  background-color: var(--doctor-accent);
+}
+
+/* Badges */
+.badge {
+  font-weight: 500;
+  padding: 0.5em 0.75em;
+  border-radius: 2rem;
+}
+
+.bg-primary {
+  background-color: var(--doctor-primary) !important;
+}
+
+.bg-info {
+  background-color: var(--doctor-secondary) !important;
+  color: white !important;
+}
+
+/* Form Controls */
+.form-control:focus, .form-select:focus {
+  border-color: var(--doctor-secondary);
+  box-shadow: 0 0 0 0.25rem rgba(32, 201, 151, 0.25);
+}
