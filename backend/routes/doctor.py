@@ -8,6 +8,7 @@ from utils.helpers import success_response, error_response
 from services.doctor_service import DoctorService
 from datetime import datetime
 import logging
+from tasks.__init__ import send_prescription_email_task
 
 doctor_bp = Blueprint('doctor', __name__)
 logger = logging.getLogger(__name__)
@@ -174,6 +175,13 @@ def send_prescription_email(id):
     """Send prescription via email"""
     try:
         # This would trigger a Celery task
+        doctor = DoctorService.get_current_doctor()
+        prescription = DoctorService.get_prescription(id)
+        send_prescription_email_task.delay(
+            prescription.patient_email, prescription.patient_name, doctor.name,
+            prescription.diagnosis, prescription.prescription, prescription.notes, prescription.date
+        )
+        
         return success_response(message='Prescription email sent successfully')
     except Exception as e:
         logger.error(f"Error sending prescription email: {str(e)}")
