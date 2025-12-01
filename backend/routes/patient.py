@@ -238,25 +238,26 @@ def download_document(id):
 def export_history():
     """Export patient history (triggers Celery task)"""
     try:
+        print("=== PATIENT HISTORY EXPORT REQUEST RECEIVED ===")
         patient = PatientService.get_current_patient()
+        print(f"Current patient: {patient}")
         if not patient:
+            print("ERROR: Patient profile not found")
             return error_response('Patient profile not found', 404)
         
-        print(f"Exporting history for patient ID: {patient.id}")
+        print(f"Exporting history for patient ID: {patient.id}, Name: {patient.name}, Email: {patient.user.email}")
         
-        # Log the export activity
-        PatientService.create_activity_log(
-            patient.id,
-            'history_export',
-            'Patient exported medical history'
-        )
-        
-        task = export_patient_history.delay(patient.id)
-        print(f"Export task created with ID: {task.id}")
+        # Use the new service method to initiate export
+        print("Calling PatientService.initiate_history_export...")
+        task_id = PatientService.initiate_history_export(patient.id)
+        print(f"Export task initiated with ID: {task_id}")
 
-        return success_response({'task_id': task.id}, 'Export initiated. You will receive an email when ready.')
+        response_data = {'task_id': task_id}
+        print(f"Sending success response: {response_data}")
+        return success_response(response_data, 'Export initiated. You will receive an email when ready.')
     except Exception as e:
-        print(f"Error exporting history: {str(e)}")
+        print(f"!!! ERROR exporting history: {str(e)}")
+        print(f"Exception type: {type(e).__name__}")
         import traceback
         traceback.print_exc()
         logger.error(f"Error exporting history: {str(e)}")

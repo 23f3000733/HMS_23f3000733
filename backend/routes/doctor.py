@@ -313,22 +313,31 @@ def export_appointments_csv():
 def export_appointments_csv_email():
     """Export appointments as CSV and send via email"""
     try:
-        print("Initiating appointments export for doctor")
+        print("=== INITIATING APPOINTMENTS EXPORT FOR DOCTOR ===")
+        print(f"Request headers: {dict(request.headers)}")
+        print(f"Current user ID: {getattr(request, 'current_user_id', 'Not found')}")
+        
         doctor = DoctorService.get_current_doctor()
         print(f"Doctor object: {doctor}")
         if not doctor:
-            print("Doctor profile not found")
+            print("ERROR: Doctor profile not found")
             return error_response('Doctor profile not found', 404)
         
         print(f"Doctor found: {doctor.name} (ID: {doctor.id})")
+        print(f"Doctor email: {doctor.user.email}")
+        
         # Trigger background task to generate and send CSV
         from tasks.export_tasks import export_doctor_data
+        print("Creating export task...")
         task = export_doctor_data.delay(doctor.id, 'appointments')
         print(f"Export task created with ID: {task.id}")
         
-        return success_response({'task_id': task.id}, 'Appointments export initiated. You will receive an email when ready.')
+        response_data = {'task_id': task.id}
+        print(f"Returning success response: {response_data}")
+        return success_response(response_data, 'Appointments export initiated. You will receive an email when ready.')
     except Exception as e:
-        print(f"Error initiating appointments export: {str(e)}")
+        print(f"!!! ERROR INITIATING APPOINTMENTS EXPORT: {str(e)}")
+        print(f"Exception type: {type(e).__name__}")
         import traceback
         traceback.print_exc()
         logger.error(f"Error initiating appointments export: {str(e)}")

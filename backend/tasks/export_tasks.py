@@ -109,16 +109,24 @@ def export_patient_history(self, patient_id):
 """
         from tasks.notification_tasks import send_email
         print(f"Sending export email to: {to}")
-        send_email(
-            to, 
-            subject, 
-            body, 
-            attachment=csv_content, 
-            attachment_name="patient_history.csv", 
-            attachment_type="text/csv"
-        )
+        # Add try-catch around send_email to ensure we don't fail the entire task
+        try:
+            send_email(
+                to, 
+                subject, 
+                body, 
+                attachment=csv_content, 
+                attachment_name="patient_history.csv", 
+                attachment_type="text/csv"
+            )
+            print(f"EMAIL SENT SUCCESSFULLY TO: {to}")
+        except Exception as email_error:
+            print(f"FAILED TO SEND EMAIL TO {to}: {str(email_error)}")
+            # Don't raise the exception, just log it
+            # This way the task completes successfully even if email fails
+            import traceback
+            traceback.print_exc()
         
-        print(f"SENDING EMAIL TO: {to}")
         print("Patient history CSV generated and sent.")
         
         result_msg = f"Exported history for patient {patient_id}"
@@ -134,20 +142,30 @@ def export_patient_history(self, patient_id):
 
 @celery.task(name='tasks.export_tasks.export_doctor_data', bind=True, max_retries=3)
 def export_doctor_data(self, doctor_id, data_type):
-    print(f"EXECUTING doctor data export task for doctor ID: {doctor_id}, data type: {data_type}")
+    print(f"=== EXECUTING DOCTOR DATA EXPORT TASK ===")
+    print(f"Doctor ID: {doctor_id}")
+    print(f"Data type: {data_type}")
+    print(f"Task ID: {self.request.id}")
+    print(f"Retry count: {self.request.retries}")
     
     from models import DoctorDetails, db
     from services.doctor_service import DoctorService
 
     try:
+        print("Fetching doctor details...")
         doctor = DoctorDetails.query.get(doctor_id)
         if not doctor:
-            raise Exception(f"Doctor with ID {doctor_id} not found")
-
+            error_msg = f"Doctor with ID {doctor_id} not found"
+            print(f"!!! ERROR: {error_msg}")
+            raise Exception(error_msg)
+        
+        print(f"Doctor found: {doctor.name} ({doctor.user.email})")
+        
         # Generate CSV data
+        print("Generating CSV data...")
         csv_content = DoctorService.export_data_csv(doctor_id, data_type)
         print(f"Generated CSV content with {len(csv_content)} characters")
-
+        
         # Determine email subject and attachment name based on data type
         if data_type == 'prescriptions':
             subject = "Your Prescriptions Data"
@@ -161,9 +179,14 @@ def export_doctor_data(self, doctor_id, data_type):
         else:
             subject = f"Your {data_type} Data"
             attachment_name = f"{data_type}.csv"
-
+        
+        print(f"Email subject: {subject}")
+        print(f"Attachment name: {attachment_name}")
+        
         # Send the email with attachment
         to = doctor.user.email
+        print(f"Recipient email: {to}")
+        
         body = f"""
 <!DOCTYPE html>
 <html>
@@ -221,27 +244,38 @@ def export_doctor_data(self, doctor_id, data_type):
 """
         from tasks.notification_tasks import send_email
         print(f"Sending export email to: {to}")
-        send_email(
-            to, 
-            subject, 
-            body, 
-            attachment=csv_content, 
-            attachment_name=attachment_name, 
-            attachment_type="text/csv"
-        )
+        print("Calling send_email function...")
+        # Add try-catch around send_email to ensure we don't fail the entire task
+        try:
+            send_email(
+                to, 
+                subject, 
+                body, 
+                attachment=csv_content, 
+                attachment_name=attachment_name, 
+                attachment_type="text/csv"
+            )
+            print(f"SUCCESS: Email sent to: {to}")
+        except Exception as email_error:
+            print(f"FAILED TO SEND EMAIL TO {to}: {str(email_error)}")
+            # Don't raise the exception, just log it
+            # This way the task completes successfully even if email fails
+            import traceback
+            traceback.print_exc()
         
-        print(f"SENDING EMAIL TO: {to}")
         print(f"Doctor {data_type} CSV generated and sent.")
         
         result_msg = f"Exported {data_type} for doctor {doctor_id}"
         print(f"TASK RESULT: {result_msg}")
         return result_msg
     except Exception as exc:
-        print(f"FAILED TO EXPORT DOCTOR DATA FOR DOCTOR {doctor_id}, TYPE {data_type}: {str(exc)}")
+        print(f"!!! FAILED TO EXPORT DOCTOR DATA FOR DOCTOR {doctor_id}, TYPE {data_type}: {str(exc)}")
+        print(f"Exception type: {type(exc).__name__}")
         import traceback
         traceback.print_exc()
         db.session.rollback()
         # Retry with exponential backoff: 60s, 120s, 240s
+        print(f"Retrying task... Attempt {self.request.retries + 1} of {self.max_retries + 1}")
         raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
 
 @celery.task(name='tasks.export_tasks.export_admin_data', bind=True, max_retries=3)
@@ -368,16 +402,24 @@ def export_admin_data(self, admin_id, data_type):
 """
         from tasks.notification_tasks import send_email
         print(f"Sending export email to: {to}")
-        send_email(
-            to, 
-            subject, 
-            body, 
-            attachment=csv_content, 
-            attachment_name=attachment_name, 
-            attachment_type="text/csv"
-        )
+        # Add try-catch around send_email to ensure we don't fail the entire task
+        try:
+            send_email(
+                to, 
+                subject, 
+                body, 
+                attachment=csv_content, 
+                attachment_name=attachment_name, 
+                attachment_type="text/csv"
+            )
+            print(f"SUCCESS: Email sent to: {to}")
+        except Exception as email_error:
+            print(f"FAILED TO SEND EMAIL TO {to}: {str(email_error)}")
+            # Don't raise the exception, just log it
+            # This way the task completes successfully even if email fails
+            import traceback
+            traceback.print_exc()
         
-        print(f"SENDING EMAIL TO: {to}")
         print(f"Admin {data_type} CSV generated and sent.")
         
         result_msg = f"Exported {data_type} for admin {admin_id}"

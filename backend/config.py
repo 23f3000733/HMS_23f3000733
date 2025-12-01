@@ -1,4 +1,5 @@
 import os
+from pickle import TRUE
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-for-hms-v2'
@@ -13,7 +14,8 @@ class Config:
     CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL') or 'redis://localhost:6379/0'
     CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND') or 'redis://localhost:6379/0'
 
-    # Set to True for testing without Redis/Celery worker
+    # Set to False to use actual Celery workers (recommended for production)
+    # Set to True for testing without Redis/Celery worker (tasks run synchronously)
     CELERY_TASK_ALWAYS_EAGER = True
 
     WTF_CSRF_ENABLED = False

@@ -7,31 +7,48 @@ import traceback
 
 def send_email(to, subject, body, attachment=None, attachment_name=None, attachment_type=None):
     try:
-        print(f"Attempting to send email to: {to}")
+        print("=== SENDING EMAIL ===")
+        print(f"To: {to}")
         print(f"Subject: {subject}")
+        print(f"Has attachment: {bool(attachment)}")
+        if attachment:
+            print(f"Attachment name: {attachment_name}")
+            print(f"Attachment type: {attachment_type}")
+            print(f"Attachment size: {len(attachment) if attachment else 0} characters")
+        
         print(f"Mail server: {current_app.config.get('MAIL_SERVER')}")
         print(f"Mail port: {current_app.config.get('MAIL_PORT')}")
         print(f"Mail username: {current_app.config.get('MAIL_USERNAME')}")
+        print(f"Mail TLS: {current_app.config.get('MAIL_USE_TLS')}")
+        print(f"Mail SSL: {current_app.config.get('MAIL_USE_SSL')}")
         
         msg = Message(subject, recipients=[to])
         # For HTML emails, use html instead of body
         msg.html = body
         
         if attachment:
+            print("Adding attachment to email...")
             msg.attach(attachment_name, attachment_type, attachment)
+            print("Attachment added successfully")
             
         # Make sure we have an app context
+        print("Setting up app context...")
         if not current_app:
+            print("No current app, importing app module...")
             from app import app
             with app.app_context():
+                print("Sending email with app context...")
                 mail.send(msg)
         else:
+            print("Using current app context...")
             with current_app.app_context():
+                print("Sending email with current app context...")
                 mail.send(msg)
-        print(f"EMAIL SENT SUCCESSFULLY TO: {to}")
+        print(f"*** EMAIL SENT SUCCESSFULLY TO: {to} ***")
     except Exception as e:
-        print(f"FAILED TO SEND EMAIL TO {to}")
+        print(f"!!! FAILED TO SEND EMAIL TO {to} !!!")
         print(f"Error: {str(e)}")
+        print(f"Exception type: {type(e).__name__}")
         print(f"Traceback: {traceback.format_exc()}")
         raise  # Re-raise for task retry
 

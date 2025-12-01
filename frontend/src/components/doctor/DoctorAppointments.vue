@@ -459,11 +459,20 @@ export default {
 
     const exportAppointmentsCSV = async () => {
       try {
+        console.log('=== Initiating appointment export ===');
+        console.log('Calling doctorAPI.exportAppointmentsEmail()');
         const response = await doctorAPI.exportAppointmentsEmail();
+        console.log('Export response received:', response);
         // Since this is now an email-based export, we just show a message
         alert('Appointments CSV export initiated. You will receive an email with the file shortly.');
       } catch (err) {
-        console.error('Export failed:', err);
+        console.error('!!! Export failed:', err);
+        console.error('Error details:', {
+          message: err.message,
+          status: err.response?.status,
+          statusText: err.response?.statusText,
+          data: err.response?.data
+        });
         alert('Failed to initiate appointments export. Please try again.');
       }
     };

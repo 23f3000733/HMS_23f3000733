@@ -19,6 +19,39 @@ class PatientService:
     """Service class for patient operations"""
     
     @staticmethod
+    def initiate_history_export(patient_id):
+        """Initiate patient history export process"""
+        print(f"=== INITIATING PATIENT HISTORY EXPORT ===")
+        print(f"Patient ID: {patient_id}")
+        
+        # Get patient details
+        patient = PatientDetails.query.get(patient_id)
+        if not patient:
+            print(f"ERROR: Patient with ID {patient_id} not found")
+            raise ValueError(f"Patient with ID {patient_id} not found")
+        
+        print(f"Patient found: {patient.name} ({patient.user.email})")
+        
+        # Log the export activity
+        print("Creating export activity log...")
+        PatientService.create_activity_log(
+            patient_id,
+            'history_export_initiated',
+            'Patient initiated medical history export'
+        )
+        
+        # Import and trigger the Celery task
+        print("Importing export task...")
+        from tasks import export_patient_history
+        
+        print("Triggering export_patient_history Celery task...")
+        task = export_patient_history.delay(patient_id)
+        print(f"Export task triggered with ID: {task.id}")
+        
+        print("Export initiation completed successfully")
+        return task.id
+
+    @staticmethod
     def get_current_patient():
         """Get the patient details for the current logged-in user"""
         current_user = get_current_user_from_jwt()
@@ -346,6 +379,11 @@ class PatientService:
     @staticmethod
     def create_activity_log(patient_id, activity_type, description):
         """Create an activity log entry"""
+        print(f"=== CREATING ACTIVITY LOG ===")
+        print(f"Patient ID: {patient_id}")
+        print(f"Activity Type: {activity_type}")
+        print(f"Description: {description}")
+        
         log = PatientActivityLog(
             patient_id=patient_id,
             activity_type=activity_type,
@@ -355,4 +393,5 @@ class PatientService:
         db.session.commit()
         
         logger.info(f"Activity logged for patient {patient_id}: {activity_type}")
+        print(f"Activity log created successfully for patient {patient_id}")
         return log

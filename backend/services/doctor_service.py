@@ -281,44 +281,100 @@ class DoctorService:
     @staticmethod
     def export_data_csv(doctor_id, data_type):
         """Export doctor data as CSV"""
+        print(f"=== GENERATING CSV DATA ===")
+        print(f"Doctor ID: {doctor_id}")
+        print(f"Data type: {data_type}")
+        
         output = io.StringIO()
         
         if data_type == 'appointments':
+            print("Generating appointments CSV...")
             appointments = Appointment.query.filter_by(doctor_id=doctor_id).all()
+            print(f"Found {len(appointments)} appointments for doctor {doctor_id}")
+            
             writer = csv.writer(output)
             writer.writerow(['ID', 'Patient', 'Date', 'Time', 'Status'])
-            for a in appointments:
-                writer.writerow([
-                    a.id, a.patient.name, 
-                    a.date.isoformat() if a.date else '',
-                    str(a.time), a.status
-                ])
-        
+            
+            for i, a in enumerate(appointments):
+                try:
+                    row = [
+                        a.id, 
+                        a.patient.name if a.patient else 'Unknown', 
+                        a.date.isoformat() if a.date else '',
+                        str(a.time) if a.time else '',
+                        a.status if a.status else ''
+                    ]
+                    writer.writerow(row)
+                    if i < 5:  # Print first 5 rows for debugging
+                        print(f"Row {i+1}: {row}")
+                except Exception as e:
+                    print(f"Error processing appointment {a.id}: {str(e)}")
+                    writer.writerow([a.id, 'Error', '', '', ''])
+            
+            print(f"Appointments CSV generation completed. Rows: {len(appointments)}")
+            
         elif data_type == 'prescriptions':
+            print("Generating prescriptions CSV...")
             treatments = db.session.query(Treatment)\
                 .join(Appointment)\
                 .filter(Appointment.doctor_id == doctor_id)\
                 .all()
+            print(f"Found {len(treatments)} treatments for doctor {doctor_id}")
+            
             writer = csv.writer(output)
             writer.writerow(['ID', 'Patient', 'Date', 'Diagnosis', 'Prescription'])
-            for t in treatments:
-                writer.writerow([
-                    t.id, t.appointment.patient.name, 
-                    t.appointment.date.isoformat() if t.appointment.date else '',
-                    t.diagnosis, t.prescription
-                ])
-        
+            
+            for i, t in enumerate(treatments):
+                try:
+                    row = [
+                        t.id, 
+                        t.appointment.patient.name if t.appointment and t.appointment.patient else 'Unknown',
+                        t.appointment.date.isoformat() if t.appointment and t.appointment.date else '',
+                        t.diagnosis if t.diagnosis else '',
+                        t.prescription if t.prescription else ''
+                    ]
+                    writer.writerow(row)
+                    if i < 5:  # Print first 5 rows for debugging
+                        print(f"Row {i+1}: {row}")
+                except Exception as e:
+                    print(f"Error processing treatment {t.id}: {str(e)}")
+                    writer.writerow([t.id, 'Error', '', '', ''])
+            
+            print(f"Prescriptions CSV generation completed. Rows: {len(treatments)}")
+            
         elif data_type == 'patients':
+            print("Generating patients CSV...")
             patients = DoctorService.get_patients(doctor_id)
+            print(f"Found {len(patients)} patients for doctor {doctor_id}")
+            
             writer = csv.writer(output)
             writer.writerow(['ID', 'Name', 'Age', 'Contact', 'Appointments'])
-            for p in patients:
-                writer.writerow([
-                    p['id'], p['name'], p['age'], p['contact'], 
-                    p['appointment_count']
-                ])
+            
+            for i, p in enumerate(patients):
+                try:
+                    row = [
+                        p['id'], 
+                        p['name'] if p['name'] else 'Unknown',
+                        p['age'] if p['age'] else '',
+                        p['contact'] if p['contact'] else '',
+                        p['appointment_count'] if 'appointment_count' in p else ''
+                    ]
+                    writer.writerow(row)
+                    if i < 5:  # Print first 5 rows for debugging
+                        print(f"Row {i+1}: {row}")
+                except Exception as e:
+                    print(f"Error processing patient {p.get('id', 'Unknown')}: {str(e)}")
+                    writer.writerow(['Error', '', '', '', ''])
+            
+            print(f"Patients CSV generation completed. Rows: {len(patients)}")
+            
+        else:
+            print(f"Unsupported data type: {data_type}")
+            raise ValueError(f"Unsupported data type: {data_type}")
         
-        return output.getvalue()
+        csv_content = output.getvalue()
+        print(f"Total CSV content size: {len(csv_content)} characters")
+        return csv_content
     
     @staticmethod
     def get_profile(doctor_id):
