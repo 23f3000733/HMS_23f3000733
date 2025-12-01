@@ -8,6 +8,7 @@ from utils.helpers import success_response, error_response
 from services.patient_service import PatientService
 from datetime import datetime
 import logging
+from tasks.__init__ import export_patient_history
 
 patient_bp = Blueprint('patient', __name__)
 logger = logging.getLogger(__name__)
@@ -248,7 +249,8 @@ def export_history():
             'Patient exported medical history'
         )
         
-        # In production, this would trigger a Celery task
+        export_patient_history.delay(patient.id)
+
         return success_response(message='Export initiated. You will receive an email when ready.')
     except Exception as e:
         logger.error(f"Error exporting history: {str(e)}")

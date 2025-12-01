@@ -181,7 +181,7 @@ def send_prescription_email(id):
             prescription.patient_email, prescription.patient_name, doctor.name,
             prescription.diagnosis, prescription.prescription, prescription.notes, prescription.date
         )
-        
+
         return success_response(message='Prescription email sent successfully')
     except Exception as e:
         logger.error(f"Error sending prescription email: {str(e)}")
@@ -190,11 +190,23 @@ def send_prescription_email(id):
 @doctor_bp.route('/prescriptions/bulk-email', methods=['POST'])
 @jwt_required('doctor')
 def send_bulk_prescription_emails():
-    """Send multiple prescriptions via email"""
     try:
+        doctor = DoctorService.get_current_doctor()
         data = request.get_json()
         prescription_ids = data.get('prescription_ids', [])
-        # This would trigger bulk Celery tasks
+
+        for pid in prescription_ids:
+            p = DoctorService.get_prescription(pid, doctor.id)
+            send_prescription_email_task.delay(
+                p.patient_email,
+                p.patient_name,
+                doctor.name,
+                p.diagnosis,
+                p.prescription,
+                p.notes,
+                p.date,
+                True
+            )
         return success_response(message=f'{len(prescription_ids)} emails queued')
     except Exception as e:
         logger.error(f"Error sending bulk emails: {str(e)}")
