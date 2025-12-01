@@ -1,21 +1,23 @@
 from celery import Celery
-from app import create_app
 
-def make_celery():
-    flask_app = create_app()
-    
-    celery = Celery(
-        flask_app.import_name,
-        broker=flask_app.config['CELERY_BROKER_URL'],
-        backend=flask_app.config['CELERY_RESULT_BACKEND']
-    )
+# Create celery instance without Flask app context
+celery = Celery()
 
+# Configure celery
+celery.conf.update(
+    timezone="Asia/Kolkata",
+    enable_utc=False,
+    task_serializer='json',
+    result_serializer='json',
+    accept_content=['json'],
+    broker_url='redis://localhost:6379/0',
+    result_backend='redis://localhost:6379/0'
+)
+
+def make_celery(flask_app):
     celery.conf.update(
-        timezone="Asia/Kolkata",
-        enable_utc=False,
-        task_serializer='json',
-        result_serializer='json',
-        accept_content=['json']
+        broker_url=flask_app.config['CELERY_BROKER_URL'],
+        result_backend=flask_app.config['CELERY_RESULT_BACKEND']
     )
 
     class ContextTask(celery.Task):
@@ -26,5 +28,3 @@ def make_celery():
 
     celery.Task = ContextTask
     return celery
-
-celery = make_celery()

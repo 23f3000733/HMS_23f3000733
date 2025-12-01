@@ -8,7 +8,7 @@ from utils.helpers import success_response, error_response
 from services.patient_service import PatientService
 from datetime import datetime
 import logging
-from tasks.__init__ import export_patient_history
+from tasks import export_patient_history
 
 patient_bp = Blueprint('patient', __name__)
 logger = logging.getLogger(__name__)

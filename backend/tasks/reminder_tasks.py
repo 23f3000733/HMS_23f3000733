@@ -1,7 +1,7 @@
 from celery_app import celery
 from datetime import datetime
 
-@celery.task
+@celery.task(name='tasks.reminder_tasks.daily_reminder')
 def daily_reminder():
     from models import Appointment, db, ActivityLog
 
@@ -10,21 +10,29 @@ def daily_reminder():
 
     count = 0
     for appt in appointments:
-        if appt.status == 'Booked':
-            # Send reminder
-            to = appt.patient.user.email
-            subject = "Appointment Reminder"
-            body = f"You have an appointment today at {appt.time} with Dr. {appt.doctor.name}"
-            print(f"EMAIL TO: {to}\n{body}")
-            count += 1
+        try:
+            if appt.status == 'Booked':
+                # Send reminder
+                to = appt.patient.user.email
+                subject = "Appointment Reminder"
+                body = f"You have an appointment today at {appt.time} with Dr. {appt.doctor.name}"
+                
+                from tasks.notification_tasks import send_email
+                send_email(to, subject, body)
+                
+                count += 1
 
-            # Log activity
-            log = ActivityLog(
-                doctor_id=appt.doctor_id,
-                activity_type='reminder_sent',
-                description=f"Reminder sent to patient {appt.patient.name}"
-            )
-            db.session.add(log)
+                # Log activity
+                log = ActivityLog(
+                    doctor_id=appt.doctor_id,
+                    activity_type='reminder_sent',
+                    description=f"Reminder sent to patient {appt.patient.name}"
+                )
+                db.session.add(log)
+                db.session.commit()
+                
+        except Exception as e:
+            db.session.rollback()
+            print(f"FAILED TO SEND REMINDER FOR APPT {appt.id}: {str(e)}")
 
-    db.session.commit()
     return f"Sent {count} reminders"

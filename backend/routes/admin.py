@@ -14,7 +14,7 @@ from schemas import (
 from marshmallow import ValidationError
 import logging
 from utils.rate_limiter import strict_rate_limit
-from tasks.__init__ import send_flag_notification
+from tasks import send_flag_notification
 
 admin_bp = Blueprint('admin', __name__)
 logger = logging.getLogger(__name__)
@@ -132,6 +132,8 @@ def toggle_doctor_flag(doctor_id):
         flagged = AdminService.toggle_doctor_flag(doctor_id)
         
         if flagged:
+            # Get doctor details to send notification
+            doctor = AdminService.get_doctor_details(doctor_id)
             send_flag_notification.delay(doctor['email'], doctor['name'])
 
         return success_response(
@@ -236,6 +238,8 @@ def toggle_patient_flag(patient_id):
         flagged = AdminService.toggle_patient_flag(patient_id)
         
         if flagged:
+            # Get patient details to send notification
+            patient = AdminService.get_patient_details(patient_id)
             send_flag_notification.delay(patient['email'], patient['name'])
             
         return success_response(

@@ -2,7 +2,7 @@ from celery_app import celery
 import csv
 import io
 
-@celery.task
+@celery.task(name='tasks.export_tasks.export_patient_history')
 def export_patient_history(patient_id):
     from models import Appointment, Treatment, db, ActivityLog
 
@@ -37,11 +37,31 @@ def export_patient_history(patient_id):
     db.session.commit()
 
     csv_content = output.getvalue()
-
-    # "Send" the email
+    
+    # Send the email with attachment
     if appointments:
         patient = appointments[0].patient
-        print(f"SENDING EMAIL TO: {patient.user.email}")
-        print("Patient history CSV generated.")
+        to = patient.user.email
+        subject = "Your Patient History"
+        body = f"""
+Dear {patient.name},
+
+Please find attached your patient history record.
+
+Regards,
+Hospital Management System
+"""
+        from tasks.notification_tasks import send_email
+        send_email(
+            to, 
+            subject, 
+            body, 
+            attachment=csv_content, 
+            attachment_name="patient_history.csv", 
+            attachment_type="text/csv"
+        )
+        
+        print(f"SENDING EMAIL TO: {to}")
+        print("Patient history CSV generated and sent.")
 
     return f"Exported history for patient {patient_id}"

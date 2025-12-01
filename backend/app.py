@@ -1,8 +1,9 @@
 from flask import Flask
 from config import Config
-from extensions import db, security, cors
+from extensions import db, security, cors, mail
 from models import user_datastore
 from flask_migrate import Migrate
+from celery_app import make_celery
 
 
 def create_app(config_class=Config):
@@ -12,7 +13,11 @@ def create_app(config_class=Config):
     db.init_app(app)
     security.init_app(app, user_datastore)
     cors.init_app(app)
+    mail.init_app(app)
     Migrate(app, db)
+    
+    # Initialize Celery
+    app.celery = make_celery(app)
 
     from routes.auth import auth_bp
     from routes.admin import admin_bp
@@ -25,3 +30,12 @@ def create_app(config_class=Config):
     app.register_blueprint(patient_bp, url_prefix='/patient')
 
     return app
+
+app = create_app()
+
+if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+        print("Database tables created.")
+    
+    app.run(debug=True)

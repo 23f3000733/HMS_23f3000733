@@ -8,7 +8,7 @@ from utils.helpers import success_response, error_response
 from services.doctor_service import DoctorService
 from datetime import datetime
 import logging
-from tasks.__init__ import send_prescription_email_task
+from tasks import send_prescription_email_task
 
 doctor_bp = Blueprint('doctor', __name__)
 logger = logging.getLogger(__name__)
@@ -174,12 +174,15 @@ def get_prescriptions():
 def send_prescription_email(id):
     """Send prescription via email"""
     try:
-        # This would trigger a Celery task
         doctor = DoctorService.get_current_doctor()
-        prescription = DoctorService.get_prescription(id)
+        prescription = DoctorService.get_prescription_by_id(id, doctor.id)
+        
+        if not prescription:
+            return error_response('Prescription not found or unauthorized', 404)
+        
         send_prescription_email_task.delay(
-            prescription.patient_email, prescription.patient_name, doctor.name,
-            prescription.diagnosis, prescription.prescription, prescription.notes, prescription.date
+            prescription['patient_email'], prescription['patient_name'], doctor.name,
+            prescription['diagnosis'], prescription['prescription'], prescription['notes'], prescription['date']
         )
 
         return success_response(message='Prescription email sent successfully')
@@ -196,17 +199,18 @@ def send_bulk_prescription_emails():
         prescription_ids = data.get('prescription_ids', [])
 
         for pid in prescription_ids:
-            p = DoctorService.get_prescription(pid, doctor.id)
-            send_prescription_email_task.delay(
-                p.patient_email,
-                p.patient_name,
-                doctor.name,
-                p.diagnosis,
-                p.prescription,
-                p.notes,
-                p.date,
-                True
-            )
+            p = DoctorService.get_prescription_by_id(pid, doctor.id)
+            if p:
+                send_prescription_email_task.delay(
+                    p['patient_email'],
+                    p['patient_name'],
+                    doctor.name,
+                    p['diagnosis'],
+                    p['prescription'],
+                    p['notes'],
+                    p['date'],
+                    True
+                )
         return success_response(message=f'{len(prescription_ids)} emails queued')
     except Exception as e:
         logger.error(f"Error sending bulk emails: {str(e)}")
