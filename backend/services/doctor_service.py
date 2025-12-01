@@ -6,6 +6,7 @@ from extensions import db
 from models import (
     Appointment, Treatment, DoctorDetails, PatientDetails
 )
+from flask import request
 from utils.jwt_auth import get_current_user_from_jwt
 from datetime import date, datetime, timedelta
 from sqlalchemy import func

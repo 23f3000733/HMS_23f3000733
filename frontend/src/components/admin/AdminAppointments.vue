@@ -13,6 +13,7 @@
           empty-message="No appointments found"
           show-download-button
           file-name="all-appointments.csv"
+          @download-requested="exportAppointmentsCSV"
         >
           <!-- Custom Date Column -->
           <template #column-date="{ row }">
@@ -187,6 +188,7 @@
 import { ref, onMounted } from 'vue'
 import { useAdminStore } from '@/stores/admin'
 import { storeToRefs } from 'pinia'
+import { adminAPI } from '@/services/api'
 import DataTable from '@/components/shared/DataTable.vue'
 import Modal from '@/components/shared/Modal.vue'
 
@@ -232,6 +234,17 @@ export default {
       return time.substring(0, 5)
     }
 
+    const exportAppointmentsCSV = async () => {
+      try {
+        const response = await adminAPI.exportAppointmentsEmail();
+        // Since this is now an email-based export, we just show a message
+        alert('Appointments CSV export initiated. You will receive an email with the file shortly.');
+      } catch (err) {
+        console.error('Export failed:', err);
+        alert('Failed to initiate appointments export. Please try again.');
+      }
+    };
+
     onMounted(() => {
       adminStore.fetchAppointments()
     })
@@ -245,7 +258,8 @@ export default {
       viewDetails,
       deleteAppointment,
       formatDate,
-      formatTime
+      formatTime,
+      exportAppointmentsCSV
     }
   }
 }

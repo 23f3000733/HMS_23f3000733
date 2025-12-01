@@ -69,9 +69,9 @@ export const useAdminStore = defineStore('admin', {
                 }
             } catch (_err) {
                 const errorMessage = _err.response?.data?.errors
-                ? Object.values(_err.response.data.errors).join(', ')
-                : _err.response?.data?.message || 'Failed to add doctor'
-                
+                    ? Object.values(_err.response.data.errors).join(', ')
+                    : _err.response?.data?.message || 'Failed to add doctor'
+
                 return {
                     success: false,
                     error: errorMessage
@@ -117,7 +117,7 @@ export const useAdminStore = defineStore('admin', {
                     if (doctor) {
                         doctor.flagged = !doctor.flagged
                     }
-                    return { success: true }
+                    return response  // Return full response for task ID
                 }
             } catch (_err) {
                 return { success: false, error: 'Failed to flag doctor' }
@@ -141,7 +141,7 @@ export const useAdminStore = defineStore('admin', {
                 }
             }
         },
-        
+
         async fetchPatients() {
             this.loading.patients = true
             try {
@@ -210,7 +210,7 @@ export const useAdminStore = defineStore('admin', {
                     if (patient) {
                         patient.flagged = !patient.flagged
                     }
-                    return { success: true }
+                    return response  // Return full response for task ID
                 }
             } catch (_err) {
                 return { success: false, error: 'Failed to flag patient' }

@@ -242,6 +242,8 @@ def export_history():
         if not patient:
             return error_response('Patient profile not found', 404)
         
+        print(f"Exporting history for patient ID: {patient.id}")
+        
         # Log the export activity
         PatientService.create_activity_log(
             patient.id,
@@ -249,9 +251,13 @@ def export_history():
             'Patient exported medical history'
         )
         
-        export_patient_history.delay(patient.id)
+        task = export_patient_history.delay(patient.id)
+        print(f"Export task created with ID: {task.id}")
 
-        return success_response(message='Export initiated. You will receive an email when ready.')
+        return success_response({'task_id': task.id}, 'Export initiated. You will receive an email when ready.')
     except Exception as e:
+        print(f"Error exporting history: {str(e)}")
+        import traceback
+        traceback.print_exc()
         logger.error(f"Error exporting history: {str(e)}")
         return error_response('Failed to export history', 500)

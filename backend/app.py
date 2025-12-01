@@ -23,11 +23,13 @@ def create_app(config_class=Config):
     from routes.admin import admin_bp
     from routes.doctor import doctor_bp
     from routes.patient import patient_bp
+    from routes.task_status import task_status_bp
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(doctor_bp, url_prefix='/doctor')
     app.register_blueprint(patient_bp, url_prefix='/patient')
+    app.register_blueprint(task_status_bp, url_prefix='/task')
 
     return app
 

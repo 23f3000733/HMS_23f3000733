@@ -12,6 +12,7 @@
           empty-message="No prescriptions found"
           :show-download-button="true"
           file-name="prescriptions.csv"
+          @download-requested="exportPrescriptionsCSV"
         >
           <!-- Custom Date Column -->
           <template #column-date="{ value }">
@@ -52,6 +53,16 @@
               class="badge bg-secondary-subtle text-secondary rounded-pill"
             >
               Not Sent
+            </span>
+          </template>
+
+          <!-- Custom Resend Count Column -->
+          <template #column-resend_count="{ value }">
+            <span v-if="value && value > 0" class="badge bg-warning-subtle text-warning rounded-pill">
+              {{ value }} time{{ value > 1 ? 's' : '' }}
+            </span>
+            <span v-else class="badge bg-light-subtle text-muted rounded-pill">
+              0
             </span>
           </template>
 
@@ -174,7 +185,8 @@ export default {
       { key: 'patient_name', label: 'Patient', sortable: true },
       { key: 'diagnosis', label: 'Diagnosis', sortable: true },
       { key: 'prescription', label: 'Prescription', sortable: true },
-      { key: 'email_sent', label: 'Email Status', sortable: true }
+      { key: 'email_sent', label: 'Email Status', sortable: true },
+      { key: 'resend_count', label: 'Resends', sortable: true }
     ]
 
     onMounted(() => {
@@ -186,19 +198,66 @@ export default {
       showDetailsModal.value = true
     }
 
-    const sendEmail = async (prescription) => {
-      if (!confirm(`Send email to ${prescription.patient_name}?`)) return
-
-      sendingEmail.value = prescription.id
+const sendEmail = async (prescription) => {
+      if (!prescription?.id) {
+        alert('Invalid prescription')
+        return
+      }
+      
       try {
-        await doctorAPI.sendPrescriptionEmail(prescription.id)
-        // Update the prescription in the store
-        await doctorStore.fetchPrescriptions()
-        alert('Email sent successfully!')
+        sendingEmail.value = prescription.id
+        const response = await doctorAPI.sendPrescriptionEmail(prescription.id)
+        console.log('Send prescription email response:', response)
+        
+        // If task ID returned, track its status
+        const taskId = response?.data?.data?.task_id
+        if (taskId) {
+          alert('Sending prescription email...')
+          
+          // Poll task status
+          const checkStatus = setInterval(async () => {
+            try {
+              const { taskAPI } = await import('@/services/api')
+              const statusResponse = await taskAPI.getStatus(taskId)
+              console.log('Task status response:', statusResponse)
+              const status = statusResponse.data.data.status
+              
+              if (status === 'SUCCESS') {
+                clearInterval(checkStatus)
+                sendingEmail.value = null
+                alert('Prescription email sent successfully!')
+                // Refresh prescriptions to show updated email status
+                await doctorStore.fetchPrescriptions()
+              } else if (status === 'FAILURE') {
+                clearInterval(checkStatus)
+                sendingEmail.value = null
+                alert('Failed to send prescription email. Please try again.')
+              } else if (status === 'PENDING' || status === 'STARTED') {
+                console.log(`Task is still ${status}, continuing to poll...`)
+              }
+            } catch (err) {
+              console.error('Error checking task status:', err)
+              clearInterval(checkStatus)
+              sendingEmail.value = null
+            }
+          }, 2000)
+          
+          // Auto-stop polling after 30 seconds
+          setTimeout(() => {
+            clearInterval(checkStatus)
+            sendingEmail.value = null
+          }, 30000)
+        } else {
+          sendingEmail.value = null
+          alert('Email sent!')
+          // Refresh prescriptions to show updated email status
+          await doctorStore.fetchPrescriptions()
+        }
       } catch (err) {
-        alert('Failed to send email')
-      } finally {
         sendingEmail.value = null
+        const errorMessage = err.response?.data?.message || 'Failed to send email'
+        console.error('Error sending prescription email:', err)
+        alert(`Error: ${errorMessage}`)
       }
     }
 
@@ -250,6 +309,17 @@ export default {
       }
     }
 
+    const exportPrescriptionsCSV = async () => {
+      try {
+        const response = await doctorAPI.exportPrescriptionsEmail();
+        // Since this is now an email-based export, we just show a message
+        alert('Prescriptions CSV export initiated. You will receive an email with the file shortly.');
+      } catch (err) {
+        console.error('Export failed:', err);
+        alert('Failed to initiate prescriptions export. Please try again.');
+      }
+    };
+
     return {
       prescriptions,
       loading,
@@ -260,7 +330,8 @@ export default {
       viewDetails,
       sendEmail,
       printPrescription,
-      formatDate
+      formatDate,
+      exportPrescriptionsCSV
     }
   }
 }
@@ -273,6 +344,8 @@ export default {
 
 .bg-success-subtle { background-color: #e6f9eb; }
 .bg-secondary-subtle { background-color: #f5f5f7; }
+.bg-warning-subtle { background-color: #fff3cd; }
+.bg-light-subtle { background-color: #f8f9fa; }
 
 @media print {
   .modal-header, .modal-footer { display: none; }

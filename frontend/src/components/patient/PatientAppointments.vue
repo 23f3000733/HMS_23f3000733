@@ -283,12 +283,52 @@ export default {
       }
     }
 
-    const exportHistory = async () => {
+const exportHistory = async () => {
       try {
-        await patientAPI.exportHistory()
-        alert('Export started! Check your email.')
+        console.log('Initiating patient history export');
+        const response = await patientAPI.exportHistory()
+        console.log('Export history response:', response);
+        
+        // If task ID returned, track its status
+        const taskId = response?.data?.data?.task_id
+        if (taskId) {
+          alert('Generating export. You will receive an email when ready...')
+          
+          // Poll task status
+          const checkStatus = setInterval(async () => {
+            try {
+              const { taskAPI } = await import('@/services/api')
+              const statusResponse = await taskAPI.getStatus(taskId)
+              console.log('Task status response:', statusResponse);
+              const status = statusResponse.data.data.status
+              
+              if (status === 'SUCCESS') {
+                clearInterval(checkStatus)
+                alert('Export complete! Check your email.')
+                // Refresh data to show any updates
+                await patientStore.fetchHistory()
+              } else if (status === 'FAILURE') {
+                clearInterval(checkStatus)
+                alert('Export failed')
+              } else if (status === 'PENDING' || status === 'STARTED') {
+                console.log(`Task is still ${status}, continuing to poll...`)
+              }
+            } catch (err) {
+              console.error('Error checking task status:', err)
+              clearInterval(checkStatus)
+            }
+          }, 2000)
+          
+          // Auto-stop polling after 30 seconds
+          setTimeout(() => {
+            clearInterval(checkStatus)
+          }, 30000)
+        } else {
+          alert('Export initiated')
+        }
       } catch (err) {
-        alert('Failed to export')
+        console.error('Failed to export history:', err);
+        alert('Failed to export history')
       }
     }
 

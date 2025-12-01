@@ -12,6 +12,7 @@
           empty-message="No patients found"
           :show-download-button="true"
           file-name="patients.csv"
+          @download-requested="exportPatientsCSV"
         >
           <!-- Custom Name Column -->
           <template #column-name="{ row }">
@@ -420,6 +421,17 @@ export default {
       return classes[status] || 'bg-secondary-subtle text-secondary'
     }
 
+    const exportPatientsCSV = async () => {
+      try {
+        const response = await doctorAPI.exportPatientsEmail();
+        // Since this is now an email-based export, we just show a message
+        alert('Patients CSV export initiated. You will receive an email with the file shortly.');
+      } catch (err) {
+        console.error('Export failed:', err);
+        alert('Failed to initiate patients export. Please try again.');
+      }
+    };
+
     return {
       patients,
       loading,
@@ -432,7 +444,8 @@ export default {
       viewProfile,
       formatDate,
       formatTime,
-      getStatusBadgeClass
+      getStatusBadgeClass,
+      exportPatientsCSV
     }
   }
 }

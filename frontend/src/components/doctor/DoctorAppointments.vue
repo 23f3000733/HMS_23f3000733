@@ -12,6 +12,7 @@
           empty-message="No appointments found"
           :show-download-button="true"
           file-name="appointments.csv"
+          @download-requested="exportAppointmentsCSV"
         >
           <!-- Custom Patient Column -->
           <template #column-patient_name="{ row }">
@@ -456,6 +457,17 @@ export default {
       return classes[status] || 'bg-secondary-subtle text-secondary'
     }
 
+    const exportAppointmentsCSV = async () => {
+      try {
+        const response = await doctorAPI.exportAppointmentsEmail();
+        // Since this is now an email-based export, we just show a message
+        alert('Appointments CSV export initiated. You will receive an email with the file shortly.');
+      } catch (err) {
+        console.error('Export failed:', err);
+        alert('Failed to initiate appointments export. Please try again.');
+      }
+    };
+
     return {
       appointments,
       loading,
@@ -479,7 +491,8 @@ export default {
       formatDate,
       formatTime,
       getTodayDate,
-      getStatusBadgeClass
+      getStatusBadgeClass,
+      exportAppointmentsCSV
     }
   }
 }

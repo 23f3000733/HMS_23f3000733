@@ -131,7 +131,10 @@ export const adminAPI = {
     getPatientDetails: (id) => api.get(`/admin/patients/${id}/details`),
     flagPatient: (id) => api.post(`/admin/patients/${id}/flag`),
     reactivatePatient: (id) => api.post(`/admin/patients/${id}/reactivate`),
-    deleteAppointment: (id) => api.delete(`/admin/appointments/${id}`)
+    deleteAppointment: (id) => api.delete(`/admin/appointments/${id}`),
+    exportDoctorsEmail: () => api.post('/admin/doctors/export/email'),
+    exportPatientsEmail: () => api.post('/admin/patients/export/email'),
+    exportAppointmentsEmail: () => api.post('/admin/appointments/export/email')
 }
 
 // Doctor API
@@ -147,8 +150,11 @@ export const doctorAPI = {
     getPrescriptions: () => api.get('/doctor/prescriptions'),
     sendPrescriptionEmail: (id) => api.post(`/doctor/prescription/${id}/send-email`),
     exportPrescriptionsCSV: () => api.get('/doctor/prescriptions/export/csv', { responseType: 'blob' }),
+    exportPrescriptionsEmail: () => api.post('/doctor/prescriptions/export/email'),
     exportAppointmentsCSV: () => api.get('/doctor/appointments/export/csv', { responseType: 'blob' }),
+    exportAppointmentsEmail: () => api.post('/doctor/appointments/export/email'),
     exportPatientsCSV: () => api.get('/doctor/patients/export/csv', { responseType: 'blob' }),
+    exportPatientsEmail: () => api.post('/doctor/patients/export/email'),
     sendBulkPrescriptionEmails: (ids) => api.post('/doctor/prescriptions/bulk-email', { prescription_ids: ids }),
 
     // Profile
@@ -183,6 +189,10 @@ export const authAPI = {
     refreshToken: (refreshToken) => api.post('/auth/refresh', { refresh_token: refreshToken })
 }
 
+// Task Status API
+export const taskAPI = {
+    getStatus: (taskId) => api.get(`/task/status/${taskId}`)
+}
 // Export token helpers for use in components
 export { getAccessToken, getRefreshToken, setTokens, clearTokens }
 

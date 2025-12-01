@@ -177,16 +177,27 @@ def send_prescription_email(id):
         doctor = DoctorService.get_current_doctor()
         prescription = DoctorService.get_prescription_by_id(id, doctor.id)
         
+        print(f"Sending prescription email for prescription ID: {id}")
+        print(f"Doctor: {doctor.name}")
+        print(f"Prescription details: {prescription}")
+        
         if not prescription:
+            print("Prescription not found or unauthorized")
             return error_response('Prescription not found or unauthorized', 404)
         
-        send_prescription_email_task.delay(
+        task = send_prescription_email_task.delay(
             prescription['patient_email'], prescription['patient_name'], doctor.name,
-            prescription['diagnosis'], prescription['prescription'], prescription['notes'], prescription['date']
+            prescription['diagnosis'], prescription['prescription'], prescription['notes'], prescription['date'],
+            treatment_id=prescription['id']
         )
+        
+        print(f"Task created with ID: {task.id}")
 
-        return success_response(message='Prescription email sent successfully')
+        return success_response({'task_id': task.id}, 'Prescription email is being sent')
     except Exception as e:
+        print(f"Error sending prescription email: {str(e)}")
+        import traceback
+        traceback.print_exc()
         logger.error(f"Error sending prescription email: {str(e)}")
         return error_response('Failed to send email', 500)
 
@@ -209,7 +220,8 @@ def send_bulk_prescription_emails():
                     p['prescription'],
                     p['notes'],
                     p['date'],
-                    True
+                    True,
+                    treatment_id=p['id']
                 )
         return success_response(message=f'{len(prescription_ids)} emails queued')
     except Exception as e:
@@ -223,10 +235,14 @@ def send_bulk_prescription_emails():
 def export_prescriptions_csv():
     """Export prescriptions as CSV"""
     try:
+        print("Initiating prescriptions CSV export for doctor")
         doctor = DoctorService.get_current_doctor()
+        print(f"Doctor object: {doctor}")
         if not doctor:
+            print("Doctor profile not found")
             return error_response('Doctor profile not found', 404)
         
+        print(f"Doctor found: {doctor.name} (ID: {doctor.id})")
         csv_data = DoctorService.export_data_csv(doctor.id, 'prescriptions')
         return Response(
             csv_data,
@@ -234,18 +250,51 @@ def export_prescriptions_csv():
             headers={'Content-Disposition': 'attachment; filename=prescriptions.csv'}
         )
     except Exception as e:
+        print(f"Error exporting prescriptions: {str(e)}")
+        import traceback
+        traceback.print_exc()
         logger.error(f"Error exporting prescriptions: {str(e)}")
         return error_response('Failed to export prescriptions', 500)
+
+@doctor_bp.route('/prescriptions/export/email', methods=['POST'])
+@jwt_required('doctor')
+def export_prescriptions_csv_email():
+    """Export prescriptions as CSV and send via email"""
+    try:
+        print("Initiating prescriptions export for doctor")
+        doctor = DoctorService.get_current_doctor()
+        print(f"Doctor object: {doctor}")
+        if not doctor:
+            print("Doctor profile not found")
+            return error_response('Doctor profile not found', 404)
+        
+        print(f"Doctor found: {doctor.name} (ID: {doctor.id})")
+        # Trigger background task to generate and send CSV
+        from tasks.export_tasks import export_doctor_data
+        task = export_doctor_data.delay(doctor.id, 'prescriptions')
+        print(f"Export task created with ID: {task.id}")
+        
+        return success_response({'task_id': task.id}, 'Prescriptions export initiated. You will receive an email when ready.')
+    except Exception as e:
+        print(f"Error initiating prescriptions export: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        logger.error(f"Error initiating prescriptions export: {str(e)}")
+        return error_response('Failed to initiate prescriptions export', 500)
 
 @doctor_bp.route('/appointments/export/csv', methods=['GET'])
 @jwt_required('doctor')
 def export_appointments_csv():
     """Export appointments as CSV"""
     try:
+        print("Initiating appointments CSV export for doctor")
         doctor = DoctorService.get_current_doctor()
+        print(f"Doctor object: {doctor}")
         if not doctor:
+            print("Doctor profile not found")
             return error_response('Doctor profile not found', 404)
         
+        print(f"Doctor found: {doctor.name} (ID: {doctor.id})")
         csv_data = DoctorService.export_data_csv(doctor.id, 'appointments')
         return Response(
             csv_data,
@@ -253,18 +302,51 @@ def export_appointments_csv():
             headers={'Content-Disposition': 'attachment; filename=appointments.csv'}
         )
     except Exception as e:
+        print(f"Error exporting appointments: {str(e)}")
+        import traceback
+        traceback.print_exc()
         logger.error(f"Error exporting appointments: {str(e)}")
         return error_response('Failed to export appointments', 500)
+
+@doctor_bp.route('/appointments/export/email', methods=['POST'])
+@jwt_required('doctor')
+def export_appointments_csv_email():
+    """Export appointments as CSV and send via email"""
+    try:
+        print("Initiating appointments export for doctor")
+        doctor = DoctorService.get_current_doctor()
+        print(f"Doctor object: {doctor}")
+        if not doctor:
+            print("Doctor profile not found")
+            return error_response('Doctor profile not found', 404)
+        
+        print(f"Doctor found: {doctor.name} (ID: {doctor.id})")
+        # Trigger background task to generate and send CSV
+        from tasks.export_tasks import export_doctor_data
+        task = export_doctor_data.delay(doctor.id, 'appointments')
+        print(f"Export task created with ID: {task.id}")
+        
+        return success_response({'task_id': task.id}, 'Appointments export initiated. You will receive an email when ready.')
+    except Exception as e:
+        print(f"Error initiating appointments export: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        logger.error(f"Error initiating appointments export: {str(e)}")
+        return error_response('Failed to initiate appointments export', 500)
 
 @doctor_bp.route('/patients/export/csv', methods=['GET'])
 @jwt_required('doctor')
 def export_patients_csv():
     """Export patients as CSV"""
     try:
+        print("Initiating patients CSV export for doctor")
         doctor = DoctorService.get_current_doctor()
+        print(f"Doctor object: {doctor}")
         if not doctor:
+            print("Doctor profile not found")
             return error_response('Doctor profile not found', 404)
         
+        print(f"Doctor found: {doctor.name} (ID: {doctor.id})")
         csv_data = DoctorService.export_data_csv(doctor.id, 'patients')
         return Response(
             csv_data,
@@ -272,8 +354,37 @@ def export_patients_csv():
             headers={'Content-Disposition': 'attachment; filename=patients.csv'}
         )
     except Exception as e:
+        print(f"Error exporting patients: {str(e)}")
+        import traceback
+        traceback.print_exc()
         logger.error(f"Error exporting patients: {str(e)}")
         return error_response('Failed to export patients', 500)
+
+@doctor_bp.route('/patients/export/email', methods=['POST'])
+@jwt_required('doctor')
+def export_patients_csv_email():
+    """Export patients as CSV and send via email"""
+    try:
+        print("Initiating patients export for doctor")
+        doctor = DoctorService.get_current_doctor()
+        print(f"Doctor object: {doctor}")
+        if not doctor:
+            print("Doctor profile not found")
+            return error_response('Doctor profile not found', 404)
+        
+        print(f"Doctor found: {doctor.name} (ID: {doctor.id})")
+        # Trigger background task to generate and send CSV
+        from tasks.export_tasks import export_doctor_data
+        task = export_doctor_data.delay(doctor.id, 'patients')
+        print(f"Export task created with ID: {task.id}")
+        
+        return success_response({'task_id': task.id}, 'Patients export initiated. You will receive an email when ready.')
+    except Exception as e:
+        print(f"Error initiating patients export: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        logger.error(f"Error initiating patients export: {str(e)}")
+        return error_response('Failed to initiate patients export', 500)
 
 # ================= Profile Management =================
 

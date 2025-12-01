@@ -2,7 +2,7 @@
 Admin Routes
 Handles HTTP requests for admin operations
 """
-from flask import Blueprint, request
+from flask import Blueprint, request, Response
 from utils.jwt_auth import jwt_required
 from utils.helpers import success_response, error_response
 from services.admin_service import AdminService
@@ -14,7 +14,9 @@ from schemas import (
 from marshmallow import ValidationError
 import logging
 from utils.rate_limiter import strict_rate_limit
-from tasks import send_flag_notification
+from tasks import send_flag_notification, send_patient_flag_notification
+import csv
+import io
 
 admin_bp = Blueprint('admin', __name__)
 logger = logging.getLogger(__name__)
@@ -129,18 +131,27 @@ def get_doctor_details(doctor_id):
 def toggle_doctor_flag(doctor_id):
     """Toggle doctor flagged status"""
     try:
+        print(f"Toggling flag for doctor ID: {doctor_id}")
         flagged = AdminService.toggle_doctor_flag(doctor_id)
+        print(f"Doctor flagged status: {flagged}")
         
+        task = None
         if flagged:
             # Get doctor details to send notification
-            doctor = AdminService.get_doctor_details(doctor_id)
-            send_flag_notification.delay(doctor['email'], doctor['name'])
+            doctor_details = AdminService.get_doctor_details(doctor_id)
+            doctor = doctor_details['doctor']  # Extract doctor from nested structure
+            print(f"Sending flag notification to doctor: {doctor['name']} ({doctor['email']})")
+            task = send_flag_notification.delay(doctor['email'], doctor['name'])
+            print(f"Flag notification task created with ID: {task.id}")
 
         return success_response(
-            {'flagged': flagged},
+            {'flagged': flagged, 'task_id': task.id if flagged else None},
             f"Doctor {'flagged' if flagged else 'unflagged'} successfully"
         )
     except Exception as e:
+        print(f"Error toggling doctor flag: {str(e)}")
+        import traceback
+        traceback.print_exc()
         logger.error(f"Error toggling doctor flag: {str(e)}")
         return error_response('Failed to toggle flag', 500)
 
@@ -235,18 +246,27 @@ def get_patient_details(patient_id):
 def toggle_patient_flag(patient_id):
     """Toggle patient flagged status"""
     try:
+        print(f"Toggling flag for patient ID: {patient_id}")
         flagged = AdminService.toggle_patient_flag(patient_id)
+        print(f"Patient flagged status: {flagged}")
         
+        task = None
         if flagged:
             # Get patient details to send notification
-            patient = AdminService.get_patient_details(patient_id)
-            send_flag_notification.delay(patient['email'], patient['name'])
+            patient_details = AdminService.get_patient_details(patient_id)
+            patient = patient_details['patient']  # Extract patient from nested structure
+            print(f"Sending flag notification to patient: {patient['name']} ({patient['email']})")
+            task = send_patient_flag_notification.delay(patient['email'], patient['name'])
+            print(f"Flag notification task created with ID: {task.id}")
             
         return success_response(
-            {'flagged': flagged},
+            {'flagged': flagged, 'task_id': task.id if flagged else None},
             f"Patient {'flagged' if flagged else 'unflagged'} successfully"
         )
     except Exception as e:
+        print(f"Error toggling patient flag: {str(e)}")
+        import traceback
+        traceback.print_exc()
         logger.error(f"Error toggling patient flag: {str(e)}")
         return error_response('Failed to toggle flag', 500)
 
@@ -306,3 +326,190 @@ def search():
     except Exception as e:
         logger.error(f"Error searching: {str(e)}")
         return error_response('Search failed', 500)
+
+# ==================== Data Export ====================
+
+@admin_bp.route('/doctors/export/csv', methods=['GET'])
+@jwt_required('admin')
+def export_doctors_csv():
+    """Export all doctors as CSV"""
+    try:
+        # Generate CSV data for all doctors
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['ID', 'Name', 'Email', 'Specialization', 'Experience', 'Active', 'Flagged'])
+        
+        doctors = DoctorDetails.query.join(DoctorDetails.user).all()
+        for doctor in doctors:
+            writer.writerow([
+                doctor.id,
+                doctor.name,
+                doctor.user.email if doctor.user else 'N/A',
+                doctor.specialization,
+                doctor.experience,
+                doctor.user.active if doctor.user else 'N/A',
+                doctor.flagged
+            ])
+        
+        csv_content = output.getvalue()
+        return Response(
+            csv_content,
+            mimetype='text/csv',
+            headers={'Content-Disposition': 'attachment; filename=doctors.csv'}
+        )
+    except Exception as e:
+        logger.error(f"Error exporting doctors: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return error_response('Failed to export doctors', 500)
+
+@admin_bp.route('/doctors/export/email', methods=['POST'])
+@jwt_required('admin')
+def export_doctors_csv_email():
+    """Export all doctors as CSV and send via email"""
+    try:
+        print("Initiating doctors export for admin")
+        from models import User
+        admin_user_id = request.current_user_id
+        print(f"Admin user ID from JWT: {admin_user_id}")
+        admin_user = User.query.get(admin_user_id)
+        if not admin_user:
+            print("Admin user not found")
+            return error_response('Admin profile not found', 404)
+        
+        print(f"Admin user found: {admin_user.email}")
+        # Trigger background task to generate and send CSV
+        from tasks.export_tasks import export_admin_data
+        task = export_admin_data.delay(admin_user.id, 'doctors')
+        print(f"Export task created with ID: {task.id}")
+        
+        return success_response({'task_id': task.id}, 'Doctors export initiated. You will receive an email when ready.')
+    except Exception as e:
+        print(f"Error initiating doctors export: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        logger.error(f"Error initiating doctors export: {str(e)}")
+        return error_response('Failed to initiate doctors export', 500)
+
+@admin_bp.route('/patients/export/csv', methods=['GET'])
+@jwt_required('admin')
+def export_patients_csv():
+    """Export all patients as CSV"""
+    try:
+        # Generate CSV data for all patients
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['ID', 'Name', 'Email', 'Age', 'Contact', 'Active', 'Flagged'])
+        
+        patients = PatientDetails.query.join(PatientDetails.user).all()
+        for patient in patients:
+            writer.writerow([
+                patient.id,
+                patient.name,
+                patient.user.email if patient.user else 'N/A',
+                patient.age,
+                patient.contact,
+                patient.user.active if patient.user else 'N/A',
+                patient.flagged
+            ])
+        
+        csv_content = output.getvalue()
+        return Response(
+            csv_content,
+            mimetype='text/csv',
+            headers={'Content-Disposition': 'attachment; filename=patients.csv'}
+        )
+    except Exception as e:
+        logger.error(f"Error exporting patients: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return error_response('Failed to export patients', 500)
+
+@admin_bp.route('/patients/export/email', methods=['POST'])
+@jwt_required('admin')
+def export_patients_csv_email():
+    """Export all patients as CSV and send via email"""
+    try:
+        print("Initiating patients export for admin")
+        from models import User
+        admin_user_id = request.current_user_id
+        print(f"Admin user ID from JWT: {admin_user_id}")
+        admin_user = User.query.get(admin_user_id)
+        if not admin_user:
+            print("Admin user not found")
+            return error_response('Admin profile not found', 404)
+        
+        print(f"Admin user found: {admin_user.email}")
+        # Trigger background task to generate and send CSV
+        from tasks.export_tasks import export_admin_data
+        task = export_admin_data.delay(admin_user.id, 'patients')
+        print(f"Export task created with ID: {task.id}")
+        
+        return success_response({'task_id': task.id}, 'Patients export initiated. You will receive an email when ready.')
+    except Exception as e:
+        print(f"Error initiating patients export: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        logger.error(f"Error initiating patients export: {str(e)}")
+        return error_response('Failed to initiate patients export', 500)
+
+@admin_bp.route('/appointments/export/csv', methods=['GET'])
+@jwt_required('admin')
+def export_appointments_csv():
+    """Export all appointments as CSV"""
+    try:
+        # Generate CSV data for all appointments
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['ID', 'Doctor', 'Patient', 'Date', 'Time', 'Status'])
+        
+        appointments = Appointment.query.join(Appointment.doctor).join(Appointment.patient).all()
+        for appt in appointments:
+            writer.writerow([
+                appt.id,
+                appt.doctor.name if appt.doctor else 'N/A',
+                appt.patient.name if appt.patient else 'N/A',
+                appt.date.isoformat() if appt.date else '',
+                str(appt.time),
+                appt.status
+            ])
+        
+        csv_content = output.getvalue()
+        return Response(
+            csv_content,
+            mimetype='text/csv',
+            headers={'Content-Disposition': 'attachment; filename=appointments.csv'}
+        )
+    except Exception as e:
+        logger.error(f"Error exporting appointments: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return error_response('Failed to export appointments', 500)
+
+@admin_bp.route('/appointments/export/email', methods=['POST'])
+@jwt_required('admin')
+def export_appointments_csv_email():
+    """Export all appointments as CSV and send via email"""
+    try:
+        print("Initiating appointments export for admin")
+        from models import User
+        admin_user_id = request.current_user_id
+        print(f"Admin user ID from JWT: {admin_user_id}")
+        admin_user = User.query.get(admin_user_id)
+        if not admin_user:
+            print("Admin user not found")
+            return error_response('Admin profile not found', 404)
+        
+        print(f"Admin user found: {admin_user.email}")
+        # Trigger background task to generate and send CSV
+        from tasks.export_tasks import export_admin_data
+        task = export_admin_data.delay(admin_user.id, 'appointments')
+        print(f"Export task created with ID: {task.id}")
+        
+        return success_response({'task_id': task.id}, 'Appointments export initiated. You will receive an email when ready.')
+    except Exception as e:
+        print(f"Error initiating appointments export: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        logger.error(f"Error initiating appointments export: {str(e)}")
+        return error_response('Failed to initiate appointments export', 500)

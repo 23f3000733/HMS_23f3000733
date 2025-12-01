@@ -343,37 +343,11 @@ export default {
       }
     },
     downloadCSV() {
-      // Create CSV content
-      let csvContent = '';
+      // Show alert instead of direct download
+      alert('Sending CSV file to your email...');
       
-      // Add headers
-      const headers = this.columns.map(col => `"${col.label}"`).join(',');
-      csvContent += headers + '\n';
-      
-      // Add data rows
-      const dataArray = Array.isArray(this.sortedData) ? this.sortedData : [];
-      dataArray.forEach(row => {
-        const values = this.columns.map(col => {
-          const value = row[col.key];
-          // Escape quotes and wrap in quotes if needed
-          if (typeof value === 'string') {
-            return `"${value.replace(/"/g, '""')}"`;
-          }
-          return `"${value}"`;
-        }).join(',');
-        csvContent += values + '\n';
-      });
-      
-      // Create blob and download
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', this.fileName);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Emit event to parent component to handle email-based export
+      this.$emit('download-requested');
     }
   }
 }

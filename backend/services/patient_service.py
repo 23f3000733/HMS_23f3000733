@@ -68,6 +68,36 @@ class PatientService:
         db.session.add(appointment)
         db.session.commit()
         
+        # Send email notifications
+        try:
+            from tasks import send_appointment_confirmation, send_appointment_notification
+            
+            # Get patient and doctor details
+            patient = PatientDetails.query.get(patient_id)
+            doctor = DoctorDetails.query.get(doctor_id)
+            
+            if patient and doctor:
+                # Send confirmation to patient
+                send_appointment_confirmation.delay(
+                    patient.user.email,
+                    patient.name,
+                    doctor.name,
+                    str(appointment_date),
+                    str(appointment_time)
+                )
+                
+                # Send notification to doctor
+                send_appointment_notification.delay(
+                    doctor.user.email,
+                    doctor.name,
+                    patient.name,
+                    str(appointment_date),
+                    str(appointment_time)
+                )
+        except Exception as e:
+            # Log the error but don't fail the booking
+            logger.error(f"Failed to send appointment notification emails: {str(e)}")
+        
         # Log the activity
         PatientService.create_activity_log(
             patient_id,

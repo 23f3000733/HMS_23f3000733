@@ -26,6 +26,7 @@
           empty-message="No doctors found"
           show-download-button
           file-name="all-doctors.csv"
+          @download-requested="exportDoctorsCSV"
         >
           <!-- Custom Name Column -->
           <template #column-name="{ row }">
@@ -441,7 +442,50 @@ export default {
 
     const toggleFlag = async (doctor) => {
       if (!confirm(`Toggle flag for ${doctor.name}?`)) return
-      await adminStore.flagDoctor(doctor.id)
+      
+      try {
+        console.log('Toggling flag for doctor:', doctor);
+        const result = await adminStore.flagDoctor(doctor.id)
+        console.log('Flag doctor result:', result);
+        
+        // If task ID returned, track its status
+        const taskId = result?.data?.data?.task_id
+        if (taskId) {
+          alert('Sending notification email...')
+          
+          // Poll task status
+          const checkStatus = setInterval(async () => {
+            try {
+              const { taskAPI } = await import('@/services/api')
+              const statusResponse = await taskAPI.getStatus(taskId)
+              console.log('Task status response:', statusResponse);
+              const status = statusResponse.data.data.status
+              
+              if (status === 'SUCCESS') {
+                clearInterval(checkStatus)
+                alert('Email notification sent successfully!')
+                await adminStore.fetchDoctors() // Refresh list
+              } else if (status === 'FAILURE') {
+                clearInterval(checkStatus)
+                alert('Failed to send email notification')
+              } else if (status === 'PENDING' || status === 'STARTED') {
+                console.log(`Task is still ${status}, continuing to poll...`)
+              }
+            } catch (err) {
+              console.error('Error checking task status:', err)
+              clearInterval(checkStatus)
+            }
+          }, 2000) // Poll every 2 seconds
+          
+          // Auto-stop polling after 30 seconds
+          setTimeout(() => {
+            clearInterval(checkStatus)
+          }, 30000)
+        }
+      } catch (err) {
+        console.error('Failed to toggle flag:', err);
+        alert('Failed to toggle flag')
+      }
     }
 
     const reactivateDoctor = async (doctor) => {
@@ -458,6 +502,17 @@ export default {
       if (!confirm('Delete this doctor?')) return
       await adminStore.deleteDoctor(doctor.id)
     }
+
+    const exportDoctorsCSV = async () => {
+      try {
+        const response = await adminAPI.exportDoctorsEmail();
+        // Since this is now an email-based export, we just show a message
+        alert('Doctors CSV export initiated. You will receive an email with the file shortly.');
+      } catch (err) {
+        console.error('Export failed:', err);
+        alert('Failed to initiate doctors export. Please try again.');
+      }
+    };
 
     onMounted(() => {
       adminStore.fetchDoctors()
@@ -479,7 +534,8 @@ export default {
       viewDoctor,
       toggleFlag,
       reactivateDoctor,
-      deleteDoctor
+      deleteDoctor,
+      exportDoctorsCSV
     }
   }
 }
