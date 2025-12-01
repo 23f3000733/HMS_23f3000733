@@ -14,6 +14,7 @@ from schemas import (
 from marshmallow import ValidationError
 import logging
 from utils.rate_limiter import strict_rate_limit
+from tasks.__init__ import send_flag_notification
 
 admin_bp = Blueprint('admin', __name__)
 logger = logging.getLogger(__name__)
@@ -129,6 +130,10 @@ def toggle_doctor_flag(doctor_id):
     """Toggle doctor flagged status"""
     try:
         flagged = AdminService.toggle_doctor_flag(doctor_id)
+        
+        if flagged:
+            send_flag_notification.delay(doctor['email'], doctor['name'])
+
         return success_response(
             {'flagged': flagged},
             f"Doctor {'flagged' if flagged else 'unflagged'} successfully"
@@ -136,6 +141,7 @@ def toggle_doctor_flag(doctor_id):
     except Exception as e:
         logger.error(f"Error toggling doctor flag: {str(e)}")
         return error_response('Failed to toggle flag', 500)
+
 
 @admin_bp.route('/doctors/<int:doctor_id>/reactivate', methods=['POST'])
 @jwt_required('admin')
@@ -229,6 +235,9 @@ def toggle_patient_flag(patient_id):
     try:
         flagged = AdminService.toggle_patient_flag(patient_id)
         
+        if flagged:
+            send_flag_notification.delay(patient['email'], patient['name'])
+            
         return success_response(
             {'flagged': flagged},
             f"Patient {'flagged' if flagged else 'unflagged'} successfully"
