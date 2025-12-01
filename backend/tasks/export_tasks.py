@@ -1,14 +1,20 @@
 from celery_app import celery
 import csv
 import io
+from datetime import datetime
 
 @celery.task(name='tasks.export_tasks.export_patient_history', bind=True, max_retries=3)
 def export_patient_history(self, patient_id):
     print(f"EXECUTING patient history export task for patient ID: {patient_id}")
     
-    from models import Appointment, Treatment, db, ActivityLog
+    from models import Appointment, Treatment, db, ActivityLog, PatientDetails
 
     try:
+        # Get patient details first
+        patient = PatientDetails.query.get(patient_id)
+        if not patient:
+            raise Exception(f"Patient with ID {patient_id} not found")
+            
         appointments = Appointment.query.filter_by(
             patient_id=patient_id,
             status='Completed'
@@ -43,32 +49,77 @@ def export_patient_history(self, patient_id):
         csv_content = output.getvalue()
         print(f"Generated CSV content with {len(csv_content)} characters")
         
-        # Send the email with attachment
-        if appointments:
-            patient = appointments[0].patient
-            to = patient.user.email
-            subject = "Your Patient History"
-            body = f"""
-Dear {patient.name},
-
-Please find attached your patient history record.
-
-Regards,
-Hospital Management System
-"""
-            from tasks.notification_tasks import send_email
-            print(f"Sending export email to: {to}")
-            send_email(
-                to, 
-                subject, 
-                body, 
-                attachment=csv_content, 
-                attachment_name="patient_history.csv", 
-                attachment_type="text/csv"
-            )
+        # Always send the email, even if there are no appointments
+        to = patient.user.email
+        subject = "Your Patient History"
+        body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient History Export</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background-color: #f8f9fa; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #2c3e50; margin-bottom: 10px;">Patient History Export</h1>
+            <div style="width: 50px; height: 3px; background-color: #34495e; margin: 0 auto;"></div>
+        </div>
+        
+        <div style="background-color: #ffffff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <p style="font-size: 18px; margin-bottom: 20px;">Dear <strong>{patient.name}</strong>,</p>
             
-            print(f"SENDING EMAIL TO: {to}")
-            print("Patient history CSV generated and sent.")
+            <p style="margin-bottom: 25px;">Please find attached your patient history record.</p>
+            
+            <div style="background-color: #e8f4fc; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+                <h2 style="color: #2980b9; margin-top: 0; border-bottom: 2px solid #3498db; padding-bottom: 10px;">Export Details</h2>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold; width: 40%;">Records Exported:</td>
+                        <td style="padding: 8px 0;">{len(appointments)} completed appointments</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">Export Date:</td>
+                        <td style="padding: 8px 0;">{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">File Format:</td>
+                        <td style="padding: 8px 0;">CSV (Comma-Separated Values)</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <p style="margin-bottom: 25px;">You can open this file with any spreadsheet application like Microsoft Excel or Google Sheets.</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <div style="display: inline-block; background-color: #34495e; color: white; padding: 12px 25px; border-radius: 5px; text-decoration: none; font-weight: bold;">
+                    Hospital Management System
+                </div>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px; color: #7f8c8d; font-size: 14px;">
+            <p style="margin-bottom: 5px;">© 2025 Hospital Management System. All rights reserved.</p>
+            <p>This is an automated message. Please do not reply to this email.</p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+        from tasks.notification_tasks import send_email
+        print(f"Sending export email to: {to}")
+        send_email(
+            to, 
+            subject, 
+            body, 
+            attachment=csv_content, 
+            attachment_name="patient_history.csv", 
+            attachment_type="text/csv"
+        )
+        
+        print(f"SENDING EMAIL TO: {to}")
+        print("Patient history CSV generated and sent.")
         
         result_msg = f"Exported history for patient {patient_id}"
         print(f"TASK RESULT: {result_msg}")
@@ -114,12 +165,59 @@ def export_doctor_data(self, doctor_id, data_type):
         # Send the email with attachment
         to = doctor.user.email
         body = f"""
-Dear Dr. {doctor.name},
-
-Please find attached your {data_type} data export.
-
-Regards,
-Hospital Management System
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{subject}</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background-color: #f8f9fa; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #2c3e50; margin-bottom: 10px;">{subject}</h1>
+            <div style="width: 50px; height: 3px; background-color: #34495e; margin: 0 auto;"></div>
+        </div>
+        
+        <div style="background-color: #ffffff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <p style="font-size: 18px; margin-bottom: 20px;">Dear <strong>Dr. {doctor.name}</strong>,</p>
+            
+            <p style="margin-bottom: 25px;">Please find attached your {data_type} data export.</p>
+            
+            <div style="background-color: #e8f4fc; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+                <h2 style="color: #2980b9; margin-top: 0; border-bottom: 2px solid #3498db; padding-bottom: 10px;">Export Details</h2>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold; width: 40%;">Data Type:</td>
+                        <td style="padding: 8px 0;">{data_type.capitalize()}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">Export Date:</td>
+                        <td style="padding: 8px 0;">{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">File Format:</td>
+                        <td style="padding: 8px 0;">CSV (Comma-Separated Values)</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <p style="margin-bottom: 25px;">You can open this file with any spreadsheet application like Microsoft Excel or Google Sheets.</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <div style="display: inline-block; background-color: #34495e; color: white; padding: 12px 25px; border-radius: 5px; text-decoration: none; font-weight: bold;">
+                    Hospital Management System
+                </div>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px; color: #7f8c8d; font-size: 14px;">
+            <p style="margin-bottom: 5px;">© 2025 Hospital Management System. All rights reserved.</p>
+            <p>This is an automated message. Please do not reply to this email.</p>
+        </div>
+    </div>
+</body>
+</html>
 """
         from tasks.notification_tasks import send_email
         print(f"Sending export email to: {to}")
@@ -214,12 +312,59 @@ def export_admin_data(self, admin_id, data_type):
         # Send the email with attachment
         to = admin_user.email
         body = f"""
-Dear Admin,
-
-Please find attached the {data_type} data export.
-
-Regards,
-Hospital Management System
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{subject}</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background-color: #f8f9fa; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #2c3e50; margin-bottom: 10px;">{subject}</h1>
+            <div style="width: 50px; height: 3px; background-color: #34495e; margin: 0 auto;"></div>
+        </div>
+        
+        <div style="background-color: #ffffff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <p style="font-size: 18px; margin-bottom: 20px;">Dear <strong>Admin</strong>,</p>
+            
+            <p style="margin-bottom: 25px;">Please find attached the {data_type} data export.</p>
+            
+            <div style="background-color: #e8f4fc; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+                <h2 style="color: #2980b9; margin-top: 0; border-bottom: 2px solid #3498db; padding-bottom: 10px;">Export Details</h2>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold; width: 40%;">Data Type:</td>
+                        <td style="padding: 8px 0;">{data_type.capitalize()}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">Export Date:</td>
+                        <td style="padding: 8px 0;">{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">File Format:</td>
+                        <td style="padding: 8px 0;">CSV (Comma-Separated Values)</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <p style="margin-bottom: 25px;">You can open this file with any spreadsheet application like Microsoft Excel or Google Sheets.</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <div style="display: inline-block; background-color: #34495e; color: white; padding: 12px 25px; border-radius: 5px; text-decoration: none; font-weight: bold;">
+                    Hospital Management System
+                </div>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px; color: #7f8c8d; font-size: 14px;">
+            <p style="margin-bottom: 5px;">© 2025 Hospital Management System. All rights reserved.</p>
+            <p>This is an automated message. Please do not reply to this email.</p>
+        </div>
+    </div>
+</body>
+</html>
 """
         from tasks.notification_tasks import send_email
         print(f"Sending export email to: {to}")
