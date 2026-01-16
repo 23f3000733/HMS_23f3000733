@@ -8,7 +8,6 @@ from utils.helpers import success_response, error_response
 from services.patient_service import PatientService
 from datetime import datetime
 import logging
-from tasks import export_patient_history
 
 patient_bp = Blueprint('patient', __name__)
 logger = logging.getLogger(__name__)
@@ -238,27 +237,27 @@ def download_document(id):
 def export_history():
     """Export patient history (triggers Celery task)"""
     try:
-        print("=== PATIENT HISTORY EXPORT REQUEST RECEIVED ===")
+        logger.info("PATIENT HISTORY EXPORT REQUEST RECEIVED")
         patient = PatientService.get_current_patient()
-        print(f"Current patient: {patient}")
+        logger.debug(f"Current patient: {patient}")
         if not patient:
-            print("ERROR: Patient profile not found")
+            logger.error("Patient profile not found")
             return error_response('Patient profile not found', 404)
         
-        print(f"Exporting history for patient ID: {patient.id}, Name: {patient.name}, Email: {patient.user.email}")
+        logger.info(f"Exporting history for patient ID: {patient.id}, Name: {patient.name}, Email: {patient.user.email}")
         
         # Use the new service method to initiate export
-        print("Calling PatientService.initiate_history_export...")
+        logger.debug("Calling PatientService.initiate_history_export...")
         task_id = PatientService.initiate_history_export(patient.id)
-        print(f"Export task initiated with ID: {task_id}")
+        logger.info(f"Export task initiated with ID: {task_id}")
 
         response_data = {'task_id': task_id}
-        print(f"Sending success response: {response_data}")
+        logger.debug(f"Sending success response: {response_data}")
         return success_response(response_data, 'Export initiated. You will receive an email when ready.')
     except Exception as e:
-        print(f"!!! ERROR exporting history: {str(e)}")
-        print(f"Exception type: {type(e).__name__}")
+        logger.error(f"ERROR exporting history: {str(e)}")
+        logger.error(f"Exception type: {type(e).__name__}")
         import traceback
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         logger.error(f"Error exporting history: {str(e)}")
         return error_response('Failed to export history', 500)

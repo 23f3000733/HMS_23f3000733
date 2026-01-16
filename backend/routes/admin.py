@@ -17,6 +17,7 @@ from utils.rate_limiter import strict_rate_limit
 from tasks import send_flag_notification, send_patient_flag_notification
 import csv
 import io
+from models import DoctorDetails, PatientDetails, Appointment
 
 admin_bp = Blueprint('admin', __name__)
 logger = logging.getLogger(__name__)
@@ -131,27 +132,27 @@ def get_doctor_details(doctor_id):
 def toggle_doctor_flag(doctor_id):
     """Toggle doctor flagged status"""
     try:
-        print(f"Toggling flag for doctor ID: {doctor_id}")
+        logger.info(f"Toggling flag for doctor ID: {doctor_id}")
         flagged = AdminService.toggle_doctor_flag(doctor_id)
-        print(f"Doctor flagged status: {flagged}")
+        logger.info(f"Doctor flagged status: {flagged}")
         
         task = None
         if flagged:
             # Get doctor details to send notification
             doctor_details = AdminService.get_doctor_details(doctor_id)
             doctor = doctor_details['doctor']  # Extract doctor from nested structure
-            print(f"Sending flag notification to doctor: {doctor['name']} ({doctor['email']})")
+            logger.info(f"Sending flag notification to doctor: {doctor['name']} ({doctor['email']})")
             task = send_flag_notification.delay(doctor['email'], doctor['name'])
-            print(f"Flag notification task created with ID: {task.id}")
+            logger.info(f"Flag notification task created with ID: {task.id}")
 
         return success_response(
             {'flagged': flagged, 'task_id': task.id if flagged else None},
             f"Doctor {'flagged' if flagged else 'unflagged'} successfully"
         )
     except Exception as e:
-        print(f"Error toggling doctor flag: {str(e)}")
+        logger.error(f"Error toggling doctor flag: {str(e)}")
         import traceback
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         logger.error(f"Error toggling doctor flag: {str(e)}")
         return error_response('Failed to toggle flag', 500)
 
@@ -246,27 +247,27 @@ def get_patient_details(patient_id):
 def toggle_patient_flag(patient_id):
     """Toggle patient flagged status"""
     try:
-        print(f"Toggling flag for patient ID: {patient_id}")
+        logger.info(f"Toggling flag for patient ID: {patient_id}")
         flagged = AdminService.toggle_patient_flag(patient_id)
-        print(f"Patient flagged status: {flagged}")
+        logger.info(f"Patient flagged status: {flagged}")
         
         task = None
         if flagged:
             # Get patient details to send notification
             patient_details = AdminService.get_patient_details(patient_id)
             patient = patient_details['patient']  # Extract patient from nested structure
-            print(f"Sending flag notification to patient: {patient['name']} ({patient['email']})")
+            logger.info(f"Sending flag notification to patient: {patient['name']} ({patient['email']})")
             task = send_patient_flag_notification.delay(patient['email'], patient['name'])
-            print(f"Flag notification task created with ID: {task.id}")
+            logger.info(f"Flag notification task created with ID: {task.id}")
             
         return success_response(
             {'flagged': flagged, 'task_id': task.id if flagged else None},
             f"Patient {'flagged' if flagged else 'unflagged'} successfully"
         )
     except Exception as e:
-        print(f"Error toggling patient flag: {str(e)}")
+        logger.error(f"Error toggling patient flag: {str(e)}")
         import traceback
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         logger.error(f"Error toggling patient flag: {str(e)}")
         return error_response('Failed to toggle flag', 500)
 
@@ -368,26 +369,26 @@ def export_doctors_csv():
 def export_doctors_csv_email():
     """Export all doctors as CSV and send via email"""
     try:
-        print("Initiating doctors export for admin")
+        logger.info("Initiating doctors export for admin")
         from models import User
         admin_user_id = request.current_user_id
-        print(f"Admin user ID from JWT: {admin_user_id}")
+        logger.debug(f"Admin user ID from JWT: {admin_user_id}")
         admin_user = User.query.get(admin_user_id)
         if not admin_user:
-            print("Admin user not found")
+            logger.error("Admin user not found")
             return error_response('Admin profile not found', 404)
         
-        print(f"Admin user found: {admin_user.email}")
+        logger.info(f"Admin user found: {admin_user.email}")
         # Trigger background task to generate and send CSV
         from tasks.export_tasks import export_admin_data
         task = export_admin_data.delay(admin_user.id, 'doctors')
-        print(f"Export task created with ID: {task.id}")
+        logger.info(f"Export task created with ID: {task.id}")
         
         return success_response({'task_id': task.id}, 'Doctors export initiated. You will receive an email when ready.')
     except Exception as e:
-        print(f"Error initiating doctors export: {str(e)}")
+        logger.error(f"Error initiating doctors export: {str(e)}")
         import traceback
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         logger.error(f"Error initiating doctors export: {str(e)}")
         return error_response('Failed to initiate doctors export', 500)
 
@@ -430,26 +431,26 @@ def export_patients_csv():
 def export_patients_csv_email():
     """Export all patients as CSV and send via email"""
     try:
-        print("Initiating patients export for admin")
+        logger.info("Initiating patients export for admin")
         from models import User
         admin_user_id = request.current_user_id
-        print(f"Admin user ID from JWT: {admin_user_id}")
+        logger.debug(f"Admin user ID from JWT: {admin_user_id}")
         admin_user = User.query.get(admin_user_id)
         if not admin_user:
-            print("Admin user not found")
+            logger.error("Admin user not found")
             return error_response('Admin profile not found', 404)
         
-        print(f"Admin user found: {admin_user.email}")
+        logger.info(f"Admin user found: {admin_user.email}")
         # Trigger background task to generate and send CSV
         from tasks.export_tasks import export_admin_data
         task = export_admin_data.delay(admin_user.id, 'patients')
-        print(f"Export task created with ID: {task.id}")
+        logger.info(f"Export task created with ID: {task.id}")
         
         return success_response({'task_id': task.id}, 'Patients export initiated. You will receive an email when ready.')
     except Exception as e:
-        print(f"Error initiating patients export: {str(e)}")
+        logger.error(f"Error initiating patients export: {str(e)}")
         import traceback
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         logger.error(f"Error initiating patients export: {str(e)}")
         return error_response('Failed to initiate patients export', 500)
 
@@ -491,25 +492,25 @@ def export_appointments_csv():
 def export_appointments_csv_email():
     """Export all appointments as CSV and send via email"""
     try:
-        print("Initiating appointments export for admin")
+        logger.info("Initiating appointments export for admin")
         from models import User
         admin_user_id = request.current_user_id
-        print(f"Admin user ID from JWT: {admin_user_id}")
+        logger.debug(f"Admin user ID from JWT: {admin_user_id}")
         admin_user = User.query.get(admin_user_id)
         if not admin_user:
-            print("Admin user not found")
+            logger.error("Admin user not found")
             return error_response('Admin profile not found', 404)
         
-        print(f"Admin user found: {admin_user.email}")
+        logger.info(f"Admin user found: {admin_user.email}")
         # Trigger background task to generate and send CSV
         from tasks.export_tasks import export_admin_data
         task = export_admin_data.delay(admin_user.id, 'appointments')
-        print(f"Export task created with ID: {task.id}")
+        logger.info(f"Export task created with ID: {task.id}")
         
         return success_response({'task_id': task.id}, 'Appointments export initiated. You will receive an email when ready.')
     except Exception as e:
-        print(f"Error initiating appointments export: {str(e)}")
+        logger.error(f"Error initiating appointments export: {str(e)}")
         import traceback
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         logger.error(f"Error initiating appointments export: {str(e)}")
         return error_response('Failed to initiate appointments export', 500)

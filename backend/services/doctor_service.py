@@ -6,9 +6,8 @@ from extensions import db
 from models import (
     Appointment, Treatment, DoctorDetails, PatientDetails
 )
-from flask import request
 from utils.jwt_auth import get_current_user_from_jwt
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from sqlalchemy import func
 import csv
 import io
@@ -281,16 +280,14 @@ class DoctorService:
     @staticmethod
     def export_data_csv(doctor_id, data_type):
         """Export doctor data as CSV"""
-        print(f"=== GENERATING CSV DATA ===")
-        print(f"Doctor ID: {doctor_id}")
-        print(f"Data type: {data_type}")
+        logger.info(f"GENERATING CSV DATA - Doctor ID: {doctor_id}, Data type: {data_type}")
         
         output = io.StringIO()
         
         if data_type == 'appointments':
-            print("Generating appointments CSV...")
+            logger.info("Generating appointments CSV...")
             appointments = Appointment.query.filter_by(doctor_id=doctor_id).all()
-            print(f"Found {len(appointments)} appointments for doctor {doctor_id}")
+            logger.info(f"Found {len(appointments)} appointments for doctor {doctor_id}")
             
             writer = csv.writer(output)
             writer.writerow(['ID', 'Patient', 'Date', 'Time', 'Status'])
@@ -305,21 +302,21 @@ class DoctorService:
                         a.status if a.status else ''
                     ]
                     writer.writerow(row)
-                    if i < 5:  # Print first 5 rows for debugging
-                        print(f"Row {i+1}: {row}")
+                    if i < 5:  # Log first 5 rows for debugging
+                        logger.debug(f"Row {i+1}: {row}")
                 except Exception as e:
-                    print(f"Error processing appointment {a.id}: {str(e)}")
+                    logger.error(f"Error processing appointment {a.id}: {str(e)}")
                     writer.writerow([a.id, 'Error', '', '', ''])
             
-            print(f"Appointments CSV generation completed. Rows: {len(appointments)}")
+            logger.info(f"Appointments CSV generation completed. Rows: {len(appointments)}")
             
         elif data_type == 'prescriptions':
-            print("Generating prescriptions CSV...")
+            logger.info("Generating prescriptions CSV...")
             treatments = db.session.query(Treatment)\
                 .join(Appointment)\
                 .filter(Appointment.doctor_id == doctor_id)\
                 .all()
-            print(f"Found {len(treatments)} treatments for doctor {doctor_id}")
+            logger.info(f"Found {len(treatments)} treatments for doctor {doctor_id}")
             
             writer = csv.writer(output)
             writer.writerow(['ID', 'Patient', 'Date', 'Diagnosis', 'Prescription'])
@@ -334,18 +331,18 @@ class DoctorService:
                         t.prescription if t.prescription else ''
                     ]
                     writer.writerow(row)
-                    if i < 5:  # Print first 5 rows for debugging
-                        print(f"Row {i+1}: {row}")
+                    if i < 5:  # Log first 5 rows for debugging
+                        logger.debug(f"Row {i+1}: {row}")
                 except Exception as e:
-                    print(f"Error processing treatment {t.id}: {str(e)}")
+                    logger.error(f"Error processing treatment {t.id}: {str(e)}")
                     writer.writerow([t.id, 'Error', '', '', ''])
             
-            print(f"Prescriptions CSV generation completed. Rows: {len(treatments)}")
+            logger.info(f"Prescriptions CSV generation completed. Rows: {len(treatments)}")
             
         elif data_type == 'patients':
-            print("Generating patients CSV...")
+            logger.info("Generating patients CSV...")
             patients = DoctorService.get_patients(doctor_id)
-            print(f"Found {len(patients)} patients for doctor {doctor_id}")
+            logger.info(f"Found {len(patients)} patients for doctor {doctor_id}")
             
             writer = csv.writer(output)
             writer.writerow(['ID', 'Name', 'Age', 'Contact', 'Appointments'])
@@ -360,20 +357,20 @@ class DoctorService:
                         p['appointment_count'] if 'appointment_count' in p else ''
                     ]
                     writer.writerow(row)
-                    if i < 5:  # Print first 5 rows for debugging
-                        print(f"Row {i+1}: {row}")
+                    if i < 5:  # Log first 5 rows for debugging
+                        logger.debug(f"Row {i+1}: {row}")
                 except Exception as e:
-                    print(f"Error processing patient {p.get('id', 'Unknown')}: {str(e)}")
+                    logger.error(f"Error processing patient {p.get('id', 'Unknown')}: {str(e)}")
                     writer.writerow(['Error', '', '', '', ''])
             
-            print(f"Patients CSV generation completed. Rows: {len(patients)}")
+            logger.info(f"Patients CSV generation completed. Rows: {len(patients)}")
             
         else:
-            print(f"Unsupported data type: {data_type}")
+            logger.error(f"Unsupported data type: {data_type}")
             raise ValueError(f"Unsupported data type: {data_type}")
         
         csv_content = output.getvalue()
-        print(f"Total CSV content size: {len(csv_content)} characters")
+        logger.info(f"Total CSV content size: {len(csv_content)} characters")
         return csv_content
     
     @staticmethod

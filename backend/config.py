@@ -1,5 +1,4 @@
 import os
-from pickle import TRUE
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-for-hms-v2'

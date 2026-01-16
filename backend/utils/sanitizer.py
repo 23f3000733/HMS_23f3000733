@@ -1,6 +1,7 @@
 """
 Input Sanitization and Validation Utilities
 """
+import os
 import re
 import html
 import bleach
@@ -155,8 +156,6 @@ class InputSanitizer:
             sanitized = re.sub(pattern, '', sanitized, flags=re.IGNORECASE)
         
         return sanitized
-
-import os
 
 # Export for easy importing
 __all__ = ['InputSanitizer']

@@ -26,7 +26,6 @@
           empty-message="No patients found"
           show-download-button
           file-name="all-patients.csv"
-          @download-requested="exportPatientsCSV"
         >
           <!-- Custom Name Column -->
           <template #column-name="{ row }">
@@ -408,50 +407,7 @@ export default {
 
     const toggleFlag = async (patient) => {
       if (!confirm(`Toggle flag for ${patient?.name || 'this patient'}?`)) return
-      
-      try {
-        console.log('Toggling flag for patient:', patient);
-        const result = await adminStore.flagPatient(patient.id)
-        console.log('Flag patient result:', result);
-        
-        // If task ID returned, track its status
-        const taskId = result?.data?.data?.task_id
-        if (taskId) {
-          alert('Sending notification email...')
-          
-          // Poll task status
-          const checkStatus = setInterval(async () => {
-            try {
-              const { taskAPI } = await import('@/services/api')
-              const statusResponse = await taskAPI.getStatus(taskId)
-              console.log('Task status response:', statusResponse);
-              const status = statusResponse.data.data.status
-              
-              if (status === 'SUCCESS') {
-                clearInterval(checkStatus)
-                alert('Email notification sent successfully!')
-                await adminStore.fetchPatients() // Refresh list
-              } else if (status === 'FAILURE') {
-                clearInterval(checkStatus)
-                alert('Failed to send email notification')
-              } else if (status === 'PENDING' || status === 'STARTED') {
-                console.log(`Task is still ${status}, continuing to poll...`)
-              }
-            } catch (err) {
-              console.error('Error checking task status:', err)
-              clearInterval(checkStatus)
-            }
-          }, 2000)
-          
-          // Auto-stop polling after 30 seconds
-          setTimeout(() => {
-            clearInterval(checkStatus)
-          }, 30000)
-        }
-      } catch (err) {
-        console.error('Failed to toggle flag:', err);
-        alert('Failed to toggle flag')
-      }
+      await adminStore.flagPatient(patient.id)
     }
 
     const reactivatePatient = async (patient) => {
@@ -463,17 +419,6 @@ export default {
         alert(result.error)
       }
     }
-
-    const exportPatientsCSV = async () => {
-      try {
-        const response = await adminAPI.exportPatientsEmail();
-        // Since this is now an email-based export, we just show a message
-        alert('Patients CSV export initiated. You will receive an email with the file shortly.');
-      } catch (err) {
-        console.error('Export failed:', err);
-        alert('Failed to initiate patients export. Please try again.');
-      }
-    };
 
     onMounted(() => {
       adminStore.fetchPatients()
@@ -492,8 +437,7 @@ export default {
       deletePatient,
       viewProfile,
       toggleFlag,
-      reactivatePatient,
-      exportPatientsCSV
+      reactivatePatient
     }
   }
 }

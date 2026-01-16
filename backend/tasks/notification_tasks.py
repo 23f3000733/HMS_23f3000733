@@ -4,60 +4,63 @@ from extensions import mail
 from flask import current_app
 from datetime import datetime
 import traceback
+import logging
+
+logger = logging.getLogger(__name__)
 
 def send_email(to, subject, body, attachment=None, attachment_name=None, attachment_type=None):
     try:
-        print("=== SENDING EMAIL ===")
-        print(f"To: {to}")
-        print(f"Subject: {subject}")
-        print(f"Has attachment: {bool(attachment)}")
+        logger.info("SENDING EMAIL")
+        logger.info(f"To: {to}")
+        logger.info(f"Subject: {subject}")
+        logger.info(f"Has attachment: {bool(attachment)}")
         if attachment:
-            print(f"Attachment name: {attachment_name}")
-            print(f"Attachment type: {attachment_type}")
-            print(f"Attachment size: {len(attachment) if attachment else 0} characters")
+            logger.info(f"Attachment name: {attachment_name}")
+            logger.info(f"Attachment type: {attachment_type}")
+            logger.info(f"Attachment size: {len(attachment) if attachment else 0} characters")
         
-        print(f"Mail server: {current_app.config.get('MAIL_SERVER')}")
-        print(f"Mail port: {current_app.config.get('MAIL_PORT')}")
-        print(f"Mail username: {current_app.config.get('MAIL_USERNAME')}")
-        print(f"Mail TLS: {current_app.config.get('MAIL_USE_TLS')}")
-        print(f"Mail SSL: {current_app.config.get('MAIL_USE_SSL')}")
+        logger.info(f"Mail server: {current_app.config.get('MAIL_SERVER')}")
+        logger.info(f"Mail port: {current_app.config.get('MAIL_PORT')}")
+        logger.info(f"Mail username: {current_app.config.get('MAIL_USERNAME')}")
+        logger.info(f"Mail TLS: {current_app.config.get('MAIL_USE_TLS')}")
+        logger.info(f"Mail SSL: {current_app.config.get('MAIL_USE_SSL')}")
         
         msg = Message(subject, recipients=[to])
         # For HTML emails, use html instead of body
         msg.html = body
         
         if attachment:
-            print("Adding attachment to email...")
+            logger.debug("Adding attachment to email...")
             msg.attach(attachment_name, attachment_type, attachment)
-            print("Attachment added successfully")
+            logger.debug("Attachment added successfully")
             
         # Make sure we have an app context
-        print("Setting up app context...")
+        logger.debug("Setting up app context...")
         if not current_app:
-            print("No current app, importing app module...")
+            logger.debug("No current app, importing app module...")
             from app import app
             with app.app_context():
-                print("Sending email with app context...")
+                logger.debug("Sending email with app context...")
                 mail.send(msg)
         else:
-            print("Using current app context...")
+            logger.debug("Using current app context...")
             with current_app.app_context():
-                print("Sending email with current app context...")
+                logger.debug("Sending email with current app context...")
                 mail.send(msg)
-        print(f"*** EMAIL SENT SUCCESSFULLY TO: {to} ***")
+        logger.info(f"*** EMAIL SENT SUCCESSFULLY TO: {to} ***")
     except Exception as e:
-        print(f"!!! FAILED TO SEND EMAIL TO {to} !!!")
-        print(f"Error: {str(e)}")
-        print(f"Exception type: {type(e).__name__}")
-        print(f"Traceback: {traceback.format_exc()}")
+        logger.error(f"!!! FAILED TO SEND EMAIL TO {to} !!!")
+        logger.error(f"Error: {str(e)}")
+        logger.error(f"Exception type: {type(e).__name__}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise  # Re-raise for task retry
 
 
 @celery.task(name='tasks.notification_tasks.send_flag_notification', bind=True, max_retries=3)
 def send_flag_notification(self, doctor_email, doctor_name):
-    print(f"EXECUTING doctor flag notification task:")
-    print(f"  Doctor email: {doctor_email}")
-    print(f"  Doctor name: {doctor_name}")
+    logger.info(f"EXECUTING doctor flag notification task:")
+    logger.info(f"  Doctor email: {doctor_email}")
+    logger.info(f"  Doctor name: {doctor_name}")
     
     subject = "Account Flagged - Dashboard Access Restricted"
     body = f"""
@@ -104,19 +107,19 @@ def send_flag_notification(self, doctor_email, doctor_name):
     try:
         send_email(doctor_email, subject, body)
         result_msg = f"Flag notification sent to {doctor_email}"
-        print(f"TASK RESULT: {result_msg}")
+        logger.info(f"TASK RESULT: {result_msg}")
         return result_msg
     except Exception as exc:
-        print(f"FAILED TO SEND FLAG NOTIFICATION TO {doctor_email}: {str(exc)}")
+        logger.error(f"FAILED TO SEND FLAG NOTIFICATION TO {doctor_email}: {str(exc)}")
         # Retry with exponential backoff: 60s, 120s, 240s
         raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
 
 
 @celery.task(name='tasks.notification_tasks.send_patient_flag_notification', bind=True, max_retries=3)
 def send_patient_flag_notification(self, patient_email, patient_name):
-    print(f"EXECUTING patient flag notification task:")
-    print(f"  Patient email: {patient_email}")
-    print(f"  Patient name: {patient_name}")
+    logger.info(f"EXECUTING patient flag notification task:")
+    logger.info(f"  Patient email: {patient_email}")
+    logger.info(f"  Patient name: {patient_name}")
     
     subject = "Account Flagged - Important Notice"
     body = f"""
@@ -162,10 +165,10 @@ def send_patient_flag_notification(self, patient_email, patient_name):
     try:
         send_email(patient_email, subject, body)
         result_msg = f"Flag notification sent to {patient_email}"
-        print(f"TASK RESULT: {result_msg}")
+        logger.info(f"TASK RESULT: {result_msg}")
         return result_msg
     except Exception as exc:
-        print(f"FAILED TO SEND PATIENT FLAG NOTIFICATION TO {patient_email}: {str(exc)}")
+        logger.error(f"FAILED TO SEND PATIENT FLAG NOTIFICATION TO {patient_email}: {str(exc)}")
         # Retry with exponential backoff: 60s, 120s, 240s
         raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
 
@@ -176,20 +179,20 @@ def send_prescription_email_task(
     diagnosis, prescription, notes, date,
     is_resend=False, treatment_id=None
 ):
-    print(f"EXECUTING prescription email task:")
-    print(f"  Patient email: {patient_email}")
-    print(f"  Patient name: {patient_name}")
-    print(f"  Doctor name: {doctor_name}")
-    print(f"  Date: {date}")
-    print(f"  Is resend: {is_resend}")
-    print(f"  Treatment ID: {treatment_id}")
+    logger.info(f"EXECUTING prescription email task:")
+    logger.info(f"  Patient email: {patient_email}")
+    logger.info(f"  Patient name: {patient_name}")
+    logger.info(f"  Doctor name: {doctor_name}")
+    logger.info(f"  Date: {date}")
+    logger.info(f"  Is resend: {is_resend}")
+    logger.info(f"  Treatment ID: {treatment_id}")
     
     subject = f"Prescription from Dr. {doctor_name} - {date}"
     if is_resend:
         subject += " (Resent)"
     
-    print(f"Preparing to send prescription email:")
-    print(f"  Subject: {subject}")
+    logger.info(f"Preparing to send prescription email:")
+    logger.info(f"  Subject: {subject}")
 
     body = f"""
 <!DOCTYPE html>
@@ -287,7 +290,7 @@ def send_prescription_email_task(
         return result_msg
     except Exception as exc:
         # Log the error for debugging
-        print(f"FAILED TO SEND PRESCRIPTION EMAIL TO {patient_email}: {str(exc)}")
+        logger.error(f"FAILED TO SEND PRESCRIPTION EMAIL TO {patient_email}: {str(exc)}")
         
         # Update treatment record with failure status if treatment_id is provided
         if treatment_id:
@@ -306,17 +309,17 @@ def send_prescription_email_task(
 @celery.task(name='tasks.notification_tasks.send_appointment_confirmation', bind=True, max_retries=3)
 def send_appointment_confirmation(self, patient_email, patient_name, doctor_name, appointment_date, appointment_time):
     """Send appointment confirmation email to patient"""
-    print(f"EXECUTING appointment confirmation task:")
-    print(f"  Patient email: {patient_email}")
-    print(f"  Patient name: {patient_name}")
-    print(f"  Doctor name: {doctor_name}")
-    print(f"  Date: {appointment_date}")
-    print(f"  Time: {appointment_time}")
+    logger.info(f"EXECUTING appointment confirmation task:")
+    logger.info(f"  Patient email: {patient_email}")
+    logger.info(f"  Patient name: {patient_name}")
+    logger.info(f"  Doctor name: {doctor_name}")
+    logger.info(f"  Date: {appointment_date}")
+    logger.info(f"  Time: {appointment_time}")
     
     subject = f"Appointment Confirmation with Dr. {doctor_name}"
     
-    print(f"Preparing to send appointment confirmation email:")
-    print(f"  Subject: {subject}")
+    logger.info(f"Preparing to send appointment confirmation email:")
+    logger.info(f"  Subject: {subject}")
 
     body = f"""
 <!DOCTYPE html>
@@ -387,11 +390,11 @@ def send_appointment_confirmation(self, patient_email, patient_name, doctor_name
         send_email(patient_email, subject, body)
         
         result_msg = f"Appointment confirmation sent to {patient_email}"
-        print(f"TASK RESULT: {result_msg}")
+        logger.info(f"TASK RESULT: {result_msg}")
         return result_msg
     except Exception as exc:
         # Log the error for debugging
-        print(f"FAILED TO SEND APPOINTMENT CONFIRMATION TO {patient_email}: {str(exc)}")
+        logger.error(f"FAILED TO SEND APPOINTMENT CONFIRMATION TO {patient_email}: {str(exc)}")
         
         # Retry with exponential backoff: 60s, 120s, 240s
         raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
@@ -399,17 +402,17 @@ def send_appointment_confirmation(self, patient_email, patient_name, doctor_name
 @celery.task(name='tasks.notification_tasks.send_appointment_notification', bind=True, max_retries=3)
 def send_appointment_notification(self, doctor_email, doctor_name, patient_name, appointment_date, appointment_time):
     """Send appointment notification email to doctor"""
-    print(f"EXECUTING appointment notification task:")
-    print(f"  Doctor email: {doctor_email}")
-    print(f"  Doctor name: {doctor_name}")
-    print(f"  Patient name: {patient_name}")
-    print(f"  Date: {appointment_date}")
-    print(f"  Time: {appointment_time}")
+    logger.info(f"EXECUTING appointment notification task:")
+    logger.info(f"  Doctor email: {doctor_email}")
+    logger.info(f"  Doctor name: {doctor_name}")
+    logger.info(f"  Patient name: {patient_name}")
+    logger.info(f"  Date: {appointment_date}")
+    logger.info(f"  Time: {appointment_time}")
     
     subject = f"New Appointment Booking - {patient_name}"
     
-    print(f"Preparing to send appointment notification email:")
-    print(f"  Subject: {subject}")
+    logger.info(f"Preparing to send appointment notification email:")
+    logger.info(f"  Subject: {subject}")
 
     body = f"""
 <!DOCTYPE html>
@@ -476,11 +479,11 @@ def send_appointment_notification(self, doctor_email, doctor_name, patient_name,
         send_email(doctor_email, subject, body)
         
         result_msg = f"Appointment notification sent to {doctor_email}"
-        print(f"TASK RESULT: {result_msg}")
+        logger.info(f"TASK RESULT: {result_msg}")
         return result_msg
     except Exception as exc:
         # Log the error for debugging
-        print(f"FAILED TO SEND APPOINTMENT NOTIFICATION TO {doctor_email}: {str(exc)}")
+        logger.error(f"FAILED TO SEND APPOINTMENT NOTIFICATION TO {doctor_email}: {str(exc)}")
         
         # Retry with exponential backoff: 60s, 120s, 240s
         raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
