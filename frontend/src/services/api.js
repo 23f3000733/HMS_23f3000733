@@ -134,7 +134,10 @@ export const adminAPI = {
     deleteAppointment: (id) => api.delete(`/admin/appointments/${id}`),
     exportDoctorsEmail: () => api.post('/admin/doctors/export/email'),
     exportPatientsEmail: () => api.post('/admin/patients/export/email'),
-    exportAppointmentsEmail: () => api.post('/admin/appointments/export/email')
+    exportAppointmentsEmail: () => api.post('/admin/appointments/export/email'),
+    // Scheduled task triggers
+    triggerDailyReminders: () => api.post('/admin/tasks/daily-reminders'),
+    triggerMonthlyReports: () => api.post('/admin/tasks/monthly-reports')
 }
 
 // Doctor API

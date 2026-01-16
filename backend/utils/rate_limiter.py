@@ -86,10 +86,6 @@ def auth_rate_limit(f):
     """Rate limit for authentication endpoints (5 requests per minute)"""
     return limit_requests(max_requests=5, window_seconds=60)(f)
 
-def api_rate_limit(f):
-    """Rate limit for general API endpoints (100 requests per minute)"""
-    return limit_requests(max_requests=100, window_seconds=60)(f)
-
 def strict_rate_limit(f):
     """Strict rate limit for sensitive operations (10 requests per minute)"""
     return limit_requests(max_requests=10, window_seconds=60)(f)

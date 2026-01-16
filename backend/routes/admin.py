@@ -14,7 +14,7 @@ from schemas import (
 from marshmallow import ValidationError
 import logging
 from utils.rate_limiter import strict_rate_limit
-from tasks import send_flag_notification, send_patient_flag_notification
+from tasks import send_flag_notification, send_patient_flag_notification, daily_reminder, monthly_activity_report
 import csv
 import io
 from models import DoctorDetails, PatientDetails, Appointment
@@ -514,3 +514,39 @@ def export_appointments_csv_email():
         logger.error(traceback.format_exc())
         logger.error(f"Error initiating appointments export: {str(e)}")
         return error_response('Failed to initiate appointments export', 500)
+
+# ==================== Scheduled Task Triggers ====================
+
+@admin_bp.route('/tasks/daily-reminders', methods=['POST'])
+@jwt_required('admin')
+@strict_rate_limit
+def trigger_daily_reminders():
+    """Manually trigger daily appointment reminders"""
+    try:
+        logger.info("Admin triggered daily reminders task")
+        task = daily_reminder.delay()
+        logger.info(f"Daily reminders task created with ID: {task.id}")
+        return success_response(
+            {'task_id': task.id},
+            'Daily reminders task triggered successfully'
+        )
+    except Exception as e:
+        logger.error(f"Error triggering daily reminders: {str(e)}")
+        return error_response('Failed to trigger daily reminders', 500)
+
+@admin_bp.route('/tasks/monthly-reports', methods=['POST'])
+@jwt_required('admin')
+@strict_rate_limit
+def trigger_monthly_reports():
+    """Manually trigger monthly activity reports"""
+    try:
+        logger.info("Admin triggered monthly reports task")
+        task = monthly_activity_report.delay()
+        logger.info(f"Monthly reports task created with ID: {task.id}")
+        return success_response(
+            {'task_id': task.id},
+            'Monthly reports task triggered successfully'
+        )
+    except Exception as e:
+        logger.error(f"Error triggering monthly reports: {str(e)}")
+        return error_response('Failed to trigger monthly reports', 500)
