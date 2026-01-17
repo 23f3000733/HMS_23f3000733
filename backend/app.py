@@ -3,7 +3,7 @@ from config import Config
 from extensions import db, security, cors, mail
 from models import user_datastore
 from flask_migrate import Migrate
-from celery_app import make_celery
+
 
 
 def create_app(config_class=Config):
@@ -16,8 +16,8 @@ def create_app(config_class=Config):
     mail.init_app(app)
     Migrate(app, db)
     
-    # Initialize Celery
-    app.celery = make_celery(app)
+    # Celery initialized in celery_worker.py for worker process
+    # app.celery = make_celery(app)
 
     from routes.auth import auth_bp
     from routes.admin import admin_bp

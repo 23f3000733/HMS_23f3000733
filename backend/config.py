@@ -10,12 +10,12 @@ class Config:
     SECURITY_SEND_REGISTER_EMAIL = False
 
     # Celery (Redis backend, correct for Windows)
-    CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL') or 'redis://localhost:6379/0'
-    CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND') or 'redis://localhost:6379/0'
+    CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL') or 'redis://127.0.0.1:6379/0'
+    CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND') or 'redis://127.0.0.1:6379/0'
 
     # Set to False to use actual Celery workers (recommended for production)
     # Set to True for testing without Redis/Celery worker (tasks run synchronously)
-    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_ALWAYS_EAGER = False
 
     WTF_CSRF_ENABLED = False
 
