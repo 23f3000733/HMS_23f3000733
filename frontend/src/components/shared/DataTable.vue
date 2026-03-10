@@ -343,9 +343,6 @@ export default {
       }
     },
     downloadCSV() {
-      // Show alert instead of direct download
-      alert('Sending CSV file to your email...');
-      
       // Emit event to parent component to handle email-based export
       this.$emit('download-requested');
     }

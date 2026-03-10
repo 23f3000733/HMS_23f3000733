@@ -70,9 +70,11 @@
                 v-if="row.status === 'Booked'" 
                 class="btn btn-outline-danger"
                 title="Cancel"
+                :disabled="processingId === row.id"
                 @click="cancelAppointment(row.id)"
               >
-                <i class="bi bi-x-lg" />
+                <span v-if="processingId === row.id" class="spinner-border spinner-border-sm" role="status"></span>
+                <i v-else class="bi bi-x-lg" />
               </button>
               <button 
                 v-if="row.status === 'Completed'" 
@@ -115,22 +117,26 @@
           <label class="form-label small text-muted text-uppercase fw-bold">Diagnosis</label>
           <textarea 
             v-model="treatment.diagnosis" 
-            class="form-control" 
+            :class="['form-control', { 'is-invalid': formErrors.diagnosis }]" 
             rows="3" 
             placeholder="Enter diagnosis..."
             required
+            @input="formErrors.diagnosis = false"
           />
+          <div class="invalid-feedback">Diagnosis is required</div>
         </div>
 
         <div class="mb-3">
           <label class="form-label small text-muted text-uppercase fw-bold">Prescription</label>
           <textarea 
             v-model="treatment.prescription" 
-            class="form-control font-monospace bg-light" 
+            :class="['form-control', 'font-monospace', 'bg-light', { 'is-invalid': formErrors.prescription }]" 
             rows="4" 
             placeholder="Rx..."
             required
+            @input="formErrors.prescription = false"
           />
+          <div class="invalid-feedback">Prescription is required</div>
         </div>
 
         <div class="mb-3">
@@ -259,6 +265,7 @@ import { ref, onMounted } from 'vue'
 import { useDoctorStore } from '@/stores/doctor'
 import { storeToRefs } from 'pinia'
 import { doctorAPI } from '@/services/api'
+import { useToast } from '@/composables/useToast'
 import DataTable from '@/components/shared/DataTable.vue'
 import Modal from '@/components/shared/Modal.vue'
 
@@ -271,6 +278,7 @@ export default {
   setup() {
     const doctorStore = useDoctorStore()
     const { appointments, loading } = storeToRefs(doctorStore)
+    const toast = useToast()
 
     // Modal states
     const showTreatmentModal = ref(false)
@@ -285,6 +293,8 @@ export default {
     const patientHistory = ref([])
     const patientInfo = ref(null)
     const loadingHistory = ref(false)
+    const formErrors = ref({ diagnosis: false, prescription: false })
+    const processingId = ref(null)
 
     // Table columns
     const columns = [
@@ -306,17 +316,21 @@ export default {
     }
 
     const submitTreatment = async () => {
+      formErrors.value = {
+        diagnosis: !treatment.value.diagnosis,
+        prescription: !treatment.value.prescription
+      }
       if (!treatment.value.diagnosis || !treatment.value.prescription) {
-        alert('Please fill in diagnosis and prescription')
+        toast.showWarning('Please fill in diagnosis and prescription')
         return
       }
       const result = await doctorStore.completeAppointment(selectedAppt.value.id, treatment.value)
       if (result.success) {
-        alert('Treatment saved successfully!')
+        toast.showSuccess('Treatment saved successfully!')
         showTreatmentModal.value = false
         selectedAppt.value = null
       } else {
-        alert(result.error)
+        toast.showError(result.error)
       }
     }
 
@@ -333,27 +347,29 @@ export default {
 
     const submitReschedule = async () => {
       if (!rescheduleData.value.date || !rescheduleData.value.time) {
-        alert('Please select both date and time')
+        toast.showWarning('Please select both date and time')
         return
       }
       try {
         await doctorAPI.rescheduleAppointment(rescheduleAppt.value.id, rescheduleData.value)
-        alert('Appointment rescheduled successfully!')
+        toast.showSuccess('Appointment rescheduled successfully!')
         showRescheduleModal.value = false
         doctorStore.fetchAppointments()
       } catch (err) {
-        alert(err.response?.data?.message || 'Failed to reschedule appointment')
+        toast.showError(err.response?.data?.message || 'Failed to reschedule appointment')
       }
     }
 
     // Other Methods
     const cancelAppointment = async (id) => {
       if (confirm('Are you sure you want to cancel this appointment?')) {
+        processingId.value = id
         const result = await doctorStore.cancelAppointment(id)
+        processingId.value = null
         if (result.success) {
-          alert('Appointment cancelled')
+          toast.showSuccess('Appointment cancelled')
         } else {
-          alert(result.error)
+          toast.showError(result.error)
         }
       }
     }
@@ -368,11 +384,11 @@ export default {
             patientInfo.value = historyData.patient
             showHistoryModal.value = true
         } else {
-            alert('Failed to load patient history')
+             toast.showError('Failed to load patient history')
         }
       } catch (err) {
         console.error('Failed to load patient history:', err)
-        alert('Failed to load patient history')
+        toast.showError('Failed to load patient history')
       } finally {
         loadingHistory.value = false
       }
@@ -464,7 +480,7 @@ export default {
         const response = await doctorAPI.exportAppointmentsEmail();
         console.log('Export response received:', response);
         // Since this is now an email-based export, we just show a message
-        alert('Appointments CSV export initiated. You will receive an email with the file shortly.');
+        toast.showSuccess('Appointments CSV export initiated. You will receive an email shortly.');
       } catch (err) {
         console.error('!!! Export failed:', err);
         console.error('Error details:', {
@@ -473,7 +489,7 @@ export default {
           statusText: err.response?.statusText,
           data: err.response?.data
         });
-        alert('Failed to initiate appointments export. Please try again.');
+        toast.showError('Failed to initiate appointments export. Please try again.');
       }
     };
 
@@ -491,6 +507,8 @@ export default {
       patientHistory,
       patientInfo,
       loadingHistory,
+      formErrors,
+      processingId,
       openTreatmentModal,
       submitTreatment,
       openRescheduleModal,

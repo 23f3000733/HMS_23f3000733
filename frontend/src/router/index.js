@@ -45,6 +45,12 @@ const routes = [
     name: 'PatientDashboard',
     component: PatientDashboard,
     meta: { requiresAuth: true, role: 'patient' }
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('@/views/NotFound.vue'),
+    meta: { requiresAuth: false }
   }
 ]
 

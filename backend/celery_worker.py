@@ -13,3 +13,4 @@ class ContextTask(celery.Task):
 
 # Apply the patched Task class to the celery instance
 celery.Task = ContextTask
+

@@ -243,6 +243,7 @@ import { ref, onMounted } from 'vue'
 import { usePatientStore } from '@/stores/patient'
 import { storeToRefs } from 'pinia'
 import { patientAPI } from '@/services/api'
+import { useToast } from '@/composables/useToast'
 import DataTable from '@/components/shared/DataTable.vue'
 import Modal from '@/components/shared/Modal.vue'
 import PatientCalendar from './PatientCalendar.vue'
@@ -254,6 +255,7 @@ export default {
   setup() {
     const patientStore = usePatientStore()
     const { history, loading } = storeToRefs(patientStore)
+    const toast = useToast()
 
     const viewMode = ref('list')
     const showRescheduleModal = ref(false)
@@ -277,9 +279,9 @@ export default {
       if (!confirm('Cancel this appointment?')) return
       const result = await patientStore.cancelAppointment(id)
       if (result.success) {
-        alert('Appointment cancelled')
+        toast.showSuccess('Appointment cancelled')
       } else {
-        alert(result.error || 'Failed to cancel')
+        toast.showError(result.error || 'Failed to cancel')
       }
     }
 
@@ -292,7 +294,7 @@ const exportHistory = async () => {
         // If task ID returned, track its status
         const taskId = response?.data?.data?.task_id
         if (taskId) {
-          alert('Generating export. You will receive an email when ready...')
+          toast.showInfo('Generating export. You will receive an email when ready...')
           
           // Poll task status
           const checkStatus = setInterval(async () => {
@@ -304,12 +306,12 @@ const exportHistory = async () => {
               
               if (status === 'SUCCESS') {
                 clearInterval(checkStatus)
-                alert('Export complete! Check your email.')
+                toast.showSuccess('Export complete! Check your email.')
                 // Refresh data to show any updates
                 await patientStore.fetchHistory()
               } else if (status === 'FAILURE') {
                 clearInterval(checkStatus)
-                alert('Export failed')
+                toast.showError('Export failed')
               } else if (status === 'PENDING' || status === 'STARTED') {
                 console.log(`Task is still ${status}, continuing to poll...`)
               }
@@ -324,11 +326,11 @@ const exportHistory = async () => {
             clearInterval(checkStatus)
           }, 30000)
         } else {
-          alert('Export initiated')
+          toast.showInfo('Export initiated')
         }
       } catch (err) {
         console.error('Failed to export history:', err);
-        alert('Failed to export history')
+        toast.showError('Failed to export history')
       }
     }
 
@@ -340,16 +342,16 @@ const exportHistory = async () => {
 
     const confirmReschedule = async () => {
       if (!rescheduleForm.value.date || !rescheduleForm.value.time) {
-        alert('Select date and time')
+        toast.showWarning('Select date and time')
         return
       }
       try {
         await patientAPI.rescheduleAppointment(reschedulingAppt.value.id, rescheduleForm.value)
-        alert('Rescheduled successfully')
+        toast.showSuccess('Rescheduled successfully')
         showRescheduleModal.value = false
         patientStore.fetchHistory()
       } catch (err) {
-        alert(err.response?.data?.message || 'Failed')
+        toast.showError(err.response?.data?.message || 'Failed')
       }
     }
 

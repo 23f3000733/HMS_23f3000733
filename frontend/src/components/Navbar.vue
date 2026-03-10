@@ -167,10 +167,7 @@ export default {
     async logout() {
       const authStore = useAuthStore()
       await authStore.logout()
-      this.isLoggedIn = false
-      this.role = ''
-      this.userEmail = ''
-      this.$router.push('/login')
+      window.location.href = '/login'
     }
   }
 }

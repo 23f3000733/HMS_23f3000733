@@ -1,0 +1,179 @@
+openapi: 3.0.0
+info:
+  title: Hospital Management System V2 (HMS-V2) API
+  description: RESTful API for managing hospital operations, including Admin, Doctor, and Patient portals.
+  version: 2.0.0
+
+servers:
+  - url: http://localhost:5000/api
+    description: Local Development Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ==================== Authentication ====================
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: User login
+      description: Authenticates user and returns JWT access and refresh tokens.
+      responses:
+        200:
+          description: Successful login
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: Patient registration
+      description: Creates a new patient account.
+      responses:
+        201:
+          description: Registration successful
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh token
+      description: Generates a new access token using a valid refresh token.
+      responses:
+        200:
+          description: Token refreshed
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: User logout
+      description: Invalidator session (handled client-side).
+      responses:
+        200:
+          description: Logged out
+
+  # ==================== Admin Operations ====================
+  /admin/stats:
+    get:
+      tags: [Admin]
+      summary: System statistics
+      description: Get global counts for doctors, patients, and appointments.
+  /admin/analytics:
+    get:
+      tags: [Admin]
+      summary: System analytics
+      description: Detailed data for admin charts and trends.
+  /admin/doctors:
+    get:
+      tags: [Admin]
+      summary: List doctors
+      description: Paginated list of all medical staff.
+    post:
+      tags: [Admin]
+      summary: Create doctor
+      description: Onboard a new doctor into the system.
+  /admin/doctors/{doctor_id}:
+    get:
+      tags: [Admin]
+      summary: Doctor detail
+    put:
+      tags: [Admin]
+      summary: Update doctor
+    delete:
+      tags: [Admin]
+      summary: Deactivate doctor
+  /admin/doctors/{doctor_id}/flag:
+    post:
+      tags: [Admin]
+      summary: Toggle doctor flag
+      description: Flags/unflags a doctor and sends notification if flagged.
+  /admin/patients:
+    get:
+      tags: [Admin]
+      summary: List patients
+    post:
+      tags: [Admin]
+      summary: Create patient
+  /admin/appointments:
+    get:
+      tags: [Admin]
+      summary: List all appointments
+  /admin/search:
+    get:
+      tags: [Admin]
+      summary: Global search
+      description: Search for doctors or patients using name or email.
+  /admin/doctors/export/csv:
+    get:
+      tags: [Admin - Export]
+      summary: Export Doctors CSV
+  /admin/doctors/export/email:
+    post:
+      tags: [Admin - Export]
+      summary: Email Doctors CSV
+      description: Triggers async export of doctor data as CSV via email.
+
+  # ==================== Doctor Operations ====================
+  /doctor/dashboard:
+    get:
+      tags: [Doctor]
+      summary: Dashboard stats
+  /doctor/appointments:
+    get:
+      tags: [Doctor]
+      summary: Own appointments
+  /doctor/appointment/{id}/complete:
+    post:
+      tags: [Doctor]
+      summary: Complete appointment
+      description: Submit diagnosis and prescription details.
+  /doctor/prescription/{id}/send-email:
+    post:
+      tags: [Doctor]
+      summary: Send Prescription Email
+      description: Triggers async email with digital prescription.
+  /doctor/profile:
+    get:
+      tags: [Doctor]
+      summary: Get profile
+    put:
+      tags: [Doctor]
+      summary: Update profile
+
+  # ==================== Patient Operations ====================
+  /patient/doctors:
+    get:
+      tags: [Patient]
+      summary: Search doctors
+      description: Find doctors by specialization.
+  /patient/book:
+    post:
+      tags: [Patient]
+      summary: Book appointment
+      description: Schedule a new session with a doctor.
+  /patient/history:
+    get:
+      tags: [Patient]
+      summary: Medical history
+      description: List of all past and upcoming appointments with treatments.
+  /patient/documents:
+    get:
+      tags: [Patient]
+      summary: List documents
+    post:
+      tags: [Patient]
+      summary: Upload document
+      description: Upload medical files (PDF/Images).
+  /patient/export:
+    post:
+      tags: [Patient - Export]
+      summary: Export Medical History
+      description: Triggers async generation of full medical history CSV via email.
+
+  # ==================== System/Shared ====================
+  /tasks/status/{task_id}:
+    get:
+      tags: [System]
+      summary: Task Status
+      description: Check the status of any Celery background task.

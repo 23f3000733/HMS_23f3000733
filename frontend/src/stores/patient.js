@@ -75,6 +75,7 @@ export const usePatientStore = defineStore('patient', {
                 const response = await patientAPI.cancelAppointment(id)
                 if (response.data.success) {
                     await this.fetchDashboard()
+                    await this.fetchHistory()
                     return { success: true }
                 }
             } catch (_err) {

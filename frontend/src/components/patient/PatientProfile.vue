@@ -187,12 +187,14 @@ import { ref, onMounted, watch } from 'vue'
 import { usePatientStore } from '@/stores/patient'
 import { storeToRefs } from 'pinia'
 import { patientAPI } from '@/services/api'
+import { useToast } from '@/composables/useToast'
 
 export default {
   name: 'PatientProfile',
   setup() {
     const patientStore = usePatientStore()
     const { profile, documents, loading } = storeToRefs(patientStore)
+    const toast = useToast()
 
     const editMode = ref(false)
     const form = ref({ name: '', email: '', age: '', contact: '', medical_history: '' })
@@ -222,10 +224,10 @@ export default {
     const saveProfile = async () => {
       const result = await patientStore.updateProfile(form.value)
       if (result.success) {
-        alert('Profile updated successfully!')
+        toast.showSuccess('Profile updated successfully!')
         editMode.value = false
       } else {
-        alert(result.error || 'Failed to update profile')
+        toast.showError(result.error || 'Failed to update profile')
       }
     }
 
@@ -241,11 +243,11 @@ export default {
 
       const result = await patientStore.uploadDocument(formData)
       if (result.success) {
-        alert('Uploaded successfully')
+        toast.showSuccess('Uploaded successfully')
         selectedFile.value = null
         if (fileInput.value) fileInput.value.value = ''
       } else {
-        alert(result.error || 'Upload failed')
+        toast.showError(result.error || 'Upload failed')
       }
     }
 
@@ -259,11 +261,11 @@ export default {
         // If window is open successfully we dont need to revoke the URL immedeatly
         if (!newWindow) {
           window.URL.revokeObjectURL(url)
-          alert ('Popup blocked. Please allow popups to view documents.')
+          toast.showError('Popup blocked. Please allow popups to view documents.')
         }
       } catch (err) {
         console.error('View failed:', err)
-        alert ('View failed. Please try again.')
+        toast.showError('View failed. Please try again.')
       }
     }
 
@@ -278,7 +280,7 @@ export default {
         link.click()
         link.remove()
       } catch (err) {
-        alert('Download failed')
+        toast.showError('Download failed')
       }
     }
 

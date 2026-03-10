@@ -111,6 +111,7 @@ import PatientAnalytics from './patient/PatientAnalytics.vue'
 import PatientBooking from './patient/PatientBooking.vue'
 import PatientAppointments from './patient/PatientAppointments.vue'
 import PatientProfile from './patient/PatientProfile.vue'
+import { useAuthStore } from '@/stores/auth'
 
 export default {
   name: 'PatientDashboard',
@@ -127,9 +128,10 @@ export default {
     }
   },
   methods: {
-    logout() {
-      localStorage.clear()
-      this.$router.push('/login')
+    async logout() {
+      const authStore = useAuthStore()
+      await authStore.logout()
+      window.location.href = '/login'
     }
   }
 }
